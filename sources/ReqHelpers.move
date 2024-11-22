@@ -1,20 +1,16 @@
 module free_tunnel_sui::req_helpers {
 
     use std::type_name::{Self, TypeName};
-
     use sui::table;
     use sui::hash;
     use sui::hex;
 
 
     const CHAIN: u8 = 0x40;     // TODO: Which id should be used?
-
     const BRIDGE_CHANNEL: vector<u8> = b"Merlin ERC20 Bridge";      // TODO: Change name?
-
-    const PROPOSE_PERIOD: u64 = 172800;         // 48 hours
-    const EXPIRE_PERIOD: u64 = 259200;          // 72 hours
-    const EXPIRE_EXTRA_PERIOD: u64 = 345600;    // 96 hours
-
+    // const PROPOSE_PERIOD: u64 = 172800;         // 48 hours
+    // const EXPIRE_PERIOD: u64 = 259200;          // 72 hours
+    // const EXPIRE_EXTRA_PERIOD: u64 = 345600;    // 96 hours
     const ETH_SIGN_HEADER: vector<u8> = b"\x19Ethereum Signed Message:\n";
 
 
@@ -24,7 +20,6 @@ module free_tunnel_sui::req_helpers {
     const EINVALID_REQ_ID_LENGTH: u64 = 3;
     const ENOT_FROM_CURRENT_CHAIN: u64 = 4;
     const ENOT_TO_CURRENT_CHAIN: u64 = 5;
-
     const EVALUE_TOO_LARGE: u64 = 10;
 
 
@@ -32,6 +27,7 @@ module free_tunnel_sui::req_helpers {
         id: UID,
         tokens: table::Table<u8, TypeName>,
     }
+
 
     public(package) fun addToken<CoinType>(store: &mut ReqHelpersStorage, tokenIndex: u8) {
         assert!(!table::contains(&store.tokens, tokenIndex), ETOKEN_INDEX_OCCUPIED);
@@ -82,7 +78,6 @@ module free_tunnel_sui::req_helpers {
         amount
     }
 
-
     fun smallU64ToString(value: u64): vector<u8> {
         let mut buffer = vector::empty<u8>();
         assert!(value < 1000, EVALUE_TOO_LARGE);
@@ -99,45 +94,43 @@ module free_tunnel_sui::req_helpers {
         buffer
     }
 
-
     #[allow(implicit_const_copy)]
     public(package) fun digestFromReqSigningMessage(reqId: vector<u8>): vector<u8> {
         assert!(vector::length(&reqId) == 32, EINVALID_REQ_ID_LENGTH);
         let specificAction = actionFrom(reqId) & 0x0f;
 
-        let mut message = vector::empty<u8>();
-
-        if (specificAction == 1) {
-            message = vector::flatten(vector[
-                ETH_SIGN_HEADER, 
-                smallU64ToString(3 + vector::length(&BRIDGE_CHANNEL) + 29 + 66),
-                b"[", BRIDGE_CHANNEL, b"]\n",
-                b"Sign to execute a lock-mint:\n",
-                b"0x",
-                hex::encode(reqId),
-            ]);
-        } else if (specificAction == 2) {
-            message = vector::flatten(vector[
-                ETH_SIGN_HEADER, 
-                smallU64ToString(3 + vector::length(&BRIDGE_CHANNEL) + 31 + 66),
-                b"[", BRIDGE_CHANNEL, b"]\n",
-                b"Sign to execute a burn-unlock:\n",
-                b"0x",
-                hex::encode(reqId),
-            ]);
-        } else if (specificAction == 3) {
-            message = vector::flatten(vector[
-                ETH_SIGN_HEADER, 
-                smallU64ToString(3 + vector::length(&BRIDGE_CHANNEL) + 29 + 66),
-                b"[", BRIDGE_CHANNEL, b"]\n",
-                b"Sign to execute a burn-mint:\n",
-                b"0x",
-                hex::encode(reqId),
-            ]);
-        } else {
-            return vector::empty<u8>()
-        };
-        hash::keccak256(&message)
+        match (specificAction) {
+            1 => {
+                hash::keccak256(&vector::flatten(vector[
+                    ETH_SIGN_HEADER, 
+                    smallU64ToString(3 + vector::length(&BRIDGE_CHANNEL) + 29 + 66),
+                    b"[", BRIDGE_CHANNEL, b"]\n",
+                    b"Sign to execute a lock-mint:\n",
+                    b"0x", hex::encode(reqId),
+                ]))
+            },
+            2 => {
+                hash::keccak256(&vector::flatten(vector[
+                    ETH_SIGN_HEADER, 
+                    smallU64ToString(3 + vector::length(&BRIDGE_CHANNEL) + 31 + 66),
+                    b"[", BRIDGE_CHANNEL, b"]\n",
+                    b"Sign to execute a burn-unlock:\n",
+                    b"0x", hex::encode(reqId),
+                ]))
+            },
+            3 => {
+                hash::keccak256(&vector::flatten(vector[
+                    ETH_SIGN_HEADER, 
+                    smallU64ToString(3 + vector::length(&BRIDGE_CHANNEL) + 29 + 66),
+                    b"[", BRIDGE_CHANNEL, b"]\n",
+                    b"Sign to execute a burn-mint:\n",
+                    b"0x", hex::encode(reqId),
+                ]))
+            },
+            _ => {
+                vector::empty<u8>()
+            }
+        }
     }
 
     public(package) fun assertFromChainOnly(reqId: vector<u8>) {
@@ -189,7 +182,47 @@ module free_tunnel_sui::req_helpers {
         assert!(hex::encode(value) == b"3345");
     }
 
-    
+    #[test]
+    fun testDecodingReqid() {
+        // `version:uint8|createdTime:uint40|action:uint8|tokenIndex:uint8|amount:uint64|from:uint8|to:uint8|(TBD):uint112`
+        let reqId = x"112233445566778899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        assert!(versionFrom(reqId) == 0x11);
+        assert!(createdTimeFrom(reqId) == 0x2233445566);
+        assert!(actionFrom(reqId) == 0x77);
+        assert!(tokenIndexFrom(reqId) == 0x88);
+        assert!(amountFrom(reqId) == 0x99aabbccddeeff00);
+        assertFromChainOnly(reqId);
+        assertToChainOnly(reqId);
+    }
 
+    #[test]
+    fun testDigestFromReqSigningMessage1() {
+        // action 1: lock-mint
+        let reqId = x"112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = x"b2cca04d052677f9c855ed80cf6a2fff36621f9b725d2495d785aee31a702cbe";
+        assert!(digestFromReqSigningMessage(reqId) == expected);
+    }
+
+    #[test]
+    fun testDigestFromReqSigningMessage2() {
+        // action 2: burn-unlock
+        let reqId = x"112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = x"1512678d7774afc7b0506d593d4a4ccb71187be5f67644b08fd2e5a996341568";
+        assert!(digestFromReqSigningMessage(reqId) == expected);
+    }
+
+    #[test]
+    fun testDigestFromReqSigningMessage3() {
+        // action 3: burn-mint
+        let reqId = x"112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = x"63f63440c8969acb7576b758f1a00fe5ee916e365ac0a373d77291bcb02e59eb";
+        assert!(digestFromReqSigningMessage(reqId) == expected);
+    }
+
+    #[test]
+    fun testDigestFromReqSigningMessage4() {
+        let reqId = x"112233445566048899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        assert!(digestFromReqSigningMessage(reqId) == vector::empty<u8>());
+    }
 
 }
