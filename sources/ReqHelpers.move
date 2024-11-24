@@ -4,7 +4,7 @@ module free_tunnel_sui::req_helpers {
     use sui::table;
     use sui::hash;
     use sui::hex;
-
+    use free_tunnel_sui::utils::smallU64ToString;
 
     const CHAIN: u8 = 0x40;     // TODO: Which id should be used?
     const BRIDGE_CHANNEL: vector<u8> = b"Merlin ERC20 Bridge";      // TODO: Change name?
@@ -13,14 +13,12 @@ module free_tunnel_sui::req_helpers {
     // const EXPIRE_EXTRA_PERIOD: u64 = 345600;    // 96 hours
     const ETH_SIGN_HEADER: vector<u8> = b"\x19Ethereum Signed Message:\n";
 
-
     const ETOKEN_INDEX_OCCUPIED: u64 = 0;
     const ETOKEN_INDEX_CANNOT_BE_ZERO: u64 = 1;
     const ETOKEN_INDEX_NONEXISTENT: u64 = 2;
     const EINVALID_REQ_ID_LENGTH: u64 = 3;
     const ENOT_FROM_CURRENT_CHAIN: u64 = 4;
     const ENOT_TO_CURRENT_CHAIN: u64 = 5;
-    const EVALUE_TOO_LARGE: u64 = 10;
 
 
     public struct ReqHelpersStorage has key, store {
@@ -78,22 +76,6 @@ module free_tunnel_sui::req_helpers {
         amount
     }
 
-    fun smallU64ToString(value: u64): vector<u8> {
-        let mut buffer = vector::empty<u8>();
-        assert!(value < 1000, EVALUE_TOO_LARGE);
-        if (value >= 100) {
-            let byte = (value / 100) as u8 + 48;
-            vector::push_back(&mut buffer, byte);
-        };
-        if (value >= 10) {
-            let byte = ((value / 10) % 10) as u8 + 48;
-            vector::push_back(&mut buffer, byte);
-        };
-        let byte = (value % 10) as u8 + 48;
-        vector::push_back(&mut buffer, byte);
-        buffer
-    }
-
     #[allow(implicit_const_copy)]
     public(package) fun digestFromReqSigningMessage(reqId: vector<u8>): vector<u8> {
         assert!(vector::length(&reqId) == 32, EINVALID_REQ_ID_LENGTH);
@@ -141,40 +123,6 @@ module free_tunnel_sui::req_helpers {
         assert!(CHAIN == *vector::borrow(&reqId, 17), ENOT_TO_CURRENT_CHAIN);
     }
 
-
-    #[test]
-    fun testSmallU64ToString() {
-        assert!(smallU64ToString(0) == b"0");
-        assert!(smallU64ToString(1) == b"1");
-        assert!(smallU64ToString(2) == b"2");
-        assert!(smallU64ToString(9) == b"9");
-        assert!(smallU64ToString(10) == b"10");
-        assert!(smallU64ToString(11) == b"11");
-        assert!(smallU64ToString(45) == b"45");
-        assert!(smallU64ToString(60) == b"60");
-        assert!(smallU64ToString(99) == b"99");
-        assert!(smallU64ToString(100) == b"100");
-        assert!(smallU64ToString(104) == b"104");
-        assert!(smallU64ToString(110) == b"110");
-        assert!(smallU64ToString(111) == b"111");
-        assert!(smallU64ToString(199) == b"199");
-        assert!(smallU64ToString(202) == b"202");
-        assert!(smallU64ToString(500) == b"500");
-        assert!(smallU64ToString(919) == b"919");
-        assert!(smallU64ToString(999) == b"999");
-    }
-
-    #[test]
-    #[expected_failure(abort_code = EVALUE_TOO_LARGE)]
-    fun testSmallU64ToStringTooLarge1() {
-        smallU64ToString(1000);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = EVALUE_TOO_LARGE)]
-    fun testSmallU64ToStringTooLarge2() {
-        smallU64ToString(1200);
-    }
 
     #[test]
     fun testHexEncode() {
