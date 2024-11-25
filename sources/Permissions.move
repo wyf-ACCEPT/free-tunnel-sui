@@ -2,14 +2,16 @@
 
 module free_tunnel_sui::permissions {
 
+    // =========================== Packages ===========================
     use sui::address;
     use sui::table;
     use sui::clock::{Self, Clock};
-    use free_tunnel_sui::utils::{recoverEthAddress, smallU64ToString, smallU64Log10};
+    use free_tunnel_sui::utils::{recoverEthAddress, smallU64ToString, smallU64Log10, assertEthAddressList};
 
+
+    // =========================== Constants ==========================
     const ETH_SIGN_HEADER: vector<u8> = b"\x19Ethereum Signed Message:\n";
     const ETH_ZERO_ADDRESS: vector<u8> = vector[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
 
     const ENOT_ADMIN: u64 = 20;
     const ENOT_PROPOSER: u64 = 21;
@@ -26,15 +28,14 @@ module free_tunnel_sui::permissions {
     const ESIGNER_CANNOT_BE_EMPTY_ADDRESS: u64 = 32;
     const EINVALID_LENGTH: u64 = 33;
     const EINVALID_SIGNATURE: u64 = 34;
-    const EINVALID_ETH_ADDRESS: u64 = 35;
-    const EACTIVE_SINCE_SHOULD_AFTER_36H: u64 = 36;
-    const EACTIVE_SINCE_SHOULD_WITHIN_5D: u64 = 37;
-    const EFAILED_TO_OVERWRITE_EXISTING_EXECUTORS: u64 = 38;
+    const EACTIVE_SINCE_SHOULD_AFTER_36H: u64 = 35;
+    const EACTIVE_SINCE_SHOULD_WITHIN_5D: u64 = 36;
+    const EFAILED_TO_OVERWRITE_EXISTING_EXECUTORS: u64 = 37;
 
 
+    // ============================ Storage ===========================
     public struct PermissionsStorage has key, store {
         id: UID,
-        // tokens: table::Table<u8, TypeName>,
         _admin: address,
         
         _proposerIndex: table::Table<address, u64>,
@@ -45,27 +46,27 @@ module free_tunnel_sui::permissions {
         _exeActiveSinceForIndex: vector<u64>,
     }
 
+    public(package) fun initPermissionsStorage(ctx: &mut TxContext): PermissionsStorage {
+        PermissionsStorage {
+            id: object::new(ctx),
+            _admin: ctx.sender(),
+            _proposerIndex: table::new(ctx),
+            _proposerList: vector::empty(),
+            _executorsForIndex: vector::empty(),
+            _exeThresholdForIndex: vector::empty(),
+            _exeActiveSinceForIndex: vector::empty(),
+        }
+    }
 
-    fun assertOnlyAdmin(store: &PermissionsStorage, ctx: &TxContext) {
+
+    // =========================== Functions ===========================
+    public(package) fun assertOnlyAdmin(store: &PermissionsStorage, ctx: &TxContext) {
         assert!(ctx.sender() == store._admin, ENOT_ADMIN);
     }
 
-    fun assertOnlyProposer(store: &PermissionsStorage, ctx: &TxContext) {
-        assert!(table::contains(&store._proposerIndex, ctx.sender()), ENOT_PROPOSER);
+    public(package) fun assertOnlyProposer(store: &PermissionsStorage, ctx: &TxContext) {
+        assert!(store._proposerIndex.contains(ctx.sender()), ENOT_PROPOSER);
     }
-
-    fun assertEthAddress(addr: vector<u8>) {
-        assert!(addr.length() == 20, EINVALID_ETH_ADDRESS);
-    }
-
-    fun assertEthAddressList(addrs: vector<vector<u8>>) {
-        let mut i = 0;
-        while (i < addrs.length()) {
-            assertEthAddress(addrs[i]);
-            i = i + 1;
-        };
-    }
-
 
     public(package) fun initAdminInternal(admin: address, store: &mut PermissionsStorage) {
         store._admin = admin;
@@ -82,15 +83,15 @@ module free_tunnel_sui::permissions {
     }
 
     public(package) fun addProposerInternal(proposer: address, store: &mut PermissionsStorage) {
-        assert!(!table::contains(&store._proposerIndex, proposer), EALREADY_PROPOSER);
+        assert!(!store._proposerIndex.contains(proposer), EALREADY_PROPOSER);
         store._proposerList.push_back(proposer);
-        table::add(&mut store._proposerIndex, proposer, store._proposerList.length());
+        store._proposerIndex.add(proposer, store._proposerList.length());
     }
 
     public entry fun removeProposer(proposer: address, store: &mut PermissionsStorage, ctx: &mut TxContext) {
         assertOnlyAdmin(store, ctx);
-        assert!(table::contains(&store._proposerIndex, proposer), ENOT_EXISTING_PROPOSER);
-        let index = table::remove(&mut store._proposerIndex, proposer);
+        assert!(store._proposerIndex.contains(proposer), ENOT_EXISTING_PROPOSER);
+        let index = store._proposerIndex.remove(proposer);
 
         let len = store._proposerList.length();
         if (index < len) {
@@ -207,7 +208,7 @@ module free_tunnel_sui::permissions {
         }
     }
 
-    fun checkMultiSignatures(
+    public(package) fun checkMultiSignatures(
         msg: vector<u8>,     // Can only ecrecover from raw message in Sui
         r: vector<vector<u8>>, 
         yParityAndS: vector<vector<u8>>, 

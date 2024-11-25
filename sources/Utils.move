@@ -6,6 +6,8 @@ module free_tunnel_sui::utils {
     const ETOSTRING_VALUE_TOO_LARGE: u64 = 100;
     const ELOG10_VALUE_TOO_LARGE: u64 = 101;
     const EINVALID_PUBLIC_KEY: u64 = 102;
+    const EINVALID_ETH_ADDRESS: u64 = 103;
+
 
     public fun smallU64ToString(value: u64): vector<u8> {
         let mut buffer = vector::empty<u8>();
@@ -66,13 +68,13 @@ module free_tunnel_sui::utils {
 
     #[test]
     #[expected_failure(abort_code = ETOSTRING_VALUE_TOO_LARGE)]
-    fun testSmallU64ToStringTooLarge1() {
+    fun testSmallU64ToStringTooLargeFailure1() {
         smallU64ToString(10000);
     }
 
     #[test]
     #[expected_failure(abort_code = ETOSTRING_VALUE_TOO_LARGE)]
-    fun testSmallU64ToStringTooLarge2() {
+    fun testSmallU64ToStringTooLargeFailure2() {
         smallU64ToString(12000);
     }
 
@@ -92,13 +94,13 @@ module free_tunnel_sui::utils {
 
     #[test]
     #[expected_failure(abort_code = ELOG10_VALUE_TOO_LARGE)]
-    fun testSmallU64Log10TooLarge1() {
+    fun testSmallU64Log10TooLargeFailure1() {
         smallU64Log10(10000);
     }
 
     #[test]
     #[expected_failure(abort_code = ELOG10_VALUE_TOO_LARGE)]
-    fun testSmallU64Log10TooLarge2() {
+    fun testSmallU64Log10TooLargeFailure2() {
         smallU64Log10(12000);
     }
 
@@ -144,5 +146,37 @@ module free_tunnel_sui::utils {
         assert!(ethAddr == x"2eF8a51F8fF129DBb874A0efB021702F59C1b211", 1);
     }
 
+
+
+    fun assertEthAddress(addr: vector<u8>) {
+        assert!(addr.length() == 20, EINVALID_ETH_ADDRESS);
+    }
+
+    public fun assertEthAddressList(addrs: vector<vector<u8>>) {
+        let mut i = 0;
+        while (i < addrs.length()) {
+            assertEthAddress(addrs[i]);
+            i = i + 1;
+        };
+    }
+
+    #[test]
+    fun testAssertEthAddressList() {
+        let addrs = vector[
+            x"052c7707093534035fc2ed60de35e11bebb6486b",
+            x"052c7707093534035fc2ed60de35e11bebb6486b",
+            x"052c7707093534035fc2ed60de35e11bebb6486b",
+        ];
+        assertEthAddressList(addrs);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = EINVALID_ETH_ADDRESS)]
+    fun testAssertEthAddressListFailure() {
+        let addrs = vector[
+            x"052c7707093534035fc2ed60de35e11bebb648",
+        ];
+        assertEthAddressList(addrs);
+    }
 
 }
