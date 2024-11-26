@@ -61,12 +61,13 @@ module free_tunnel_sui::atomic_mint {
     // =========================== Functions ===========================
     public entry fun addToken<CoinType>(
         tokenIndex: u8,
+        decimals: u8,
         storeP: &mut PermissionsStorage, 
         storeR: &mut ReqHelpersStorage, 
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyAdmin(storeP, ctx);
-        req_helpers::addTokenInternal<CoinType>(tokenIndex, storeR);
+        req_helpers::addTokenInternal<CoinType>(tokenIndex, decimals, storeR);
     }
 
     public entry fun removeToken(
@@ -120,7 +121,7 @@ module free_tunnel_sui::atomic_mint {
         assert!(!storeA.proposedMint.contains(reqId), EINVALID_REQ_ID);
         assert!(recipient != DEAD_ADDRESS, EINVALID_RECIPIENT);
 
-        req_helpers::amountFrom(reqId);
+        req_helpers::amountFrom(reqId, storeR);
         req_helpers::tokenIndexFromCheck(reqId, storeR);
         storeA.proposedMint.add(reqId, recipient);
     }
@@ -148,7 +149,7 @@ module free_tunnel_sui::atomic_mint {
 
         *storeA.proposedMint.borrow_mut(reqId) = DEAD_ADDRESS;
 
-        let amount = req_helpers::amountFrom(reqId);
+        let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
         assert!(req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR), ETOKEN_INDEX_MISMATCH);
 
@@ -215,7 +216,7 @@ module free_tunnel_sui::atomic_mint {
         let proposer = ctx.sender();
         assert!(proposer != DEAD_ADDRESS, EINVALID_PROPOSER);
 
-        let amount = req_helpers::amountFrom(reqId);
+        let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
         storeA.proposedBurn.add(reqId, proposer);
 
@@ -253,7 +254,7 @@ module free_tunnel_sui::atomic_mint {
 
         *storeA.proposedBurn.borrow_mut(reqId) = DEAD_ADDRESS;
 
-        let amount = req_helpers::amountFrom(reqId);
+        let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
         req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR);
 
@@ -282,7 +283,7 @@ module free_tunnel_sui::atomic_mint {
 
         storeA.proposedBurn.remove(reqId);
 
-        let amount = req_helpers::amountFrom(reqId);
+        let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
         req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR);
 

@@ -24,6 +24,7 @@ module free_tunnel_sui::req_helpers {
     const ECREATED_TIME_TOO_EARLY: u64 = 6;
     const ECREATED_TIME_TOO_LATE: u64 = 7;
     const EAMOUNT_CANNOT_BE_ZERO: u64 = 8;
+    const ETOKEN_INDEX_WRONG: u64 = 9;
     
 
     // ============================ Storage ===========================
@@ -43,18 +44,28 @@ module free_tunnel_sui::req_helpers {
 
 
     // =========================== Functions ===========================
-    public(package) fun addTokenInternal<CoinType>(tokenIndex: u8, store: &mut ReqHelpersStorage) {
+    public(package) fun addTokenInternal<CoinType>(tokenIndex: u8, decimals: u8, store: &mut ReqHelpersStorage) {
         assert!(!store.tokens.contains(tokenIndex), ETOKEN_INDEX_OCCUPIED);
         assert!(tokenIndex > 0, ETOKEN_INDEX_CANNOT_BE_ZERO);
         store.tokens.add(tokenIndex, type_name::get<CoinType>());
 
-        // TODO: Consider decimals?
+        if (decimals == 6) {
+            assert!(tokenIndex < 64, ETOKEN_INDEX_WRONG);
+        } else if (decimals == 18) {
+            assert!(tokenIndex >= 64&& tokenIndex < 192, ETOKEN_INDEX_WRONG);
+        } else {
+            assert!(tokenIndex >= 192, ETOKEN_INDEX_WRONG);
+            store.tokenDecimals.add(tokenIndex, decimals);
+        };
     }
 
     public(package) fun removeTokenInternal(tokenIndex: u8, store: &mut ReqHelpersStorage) {
         assert!(store.tokens.contains(tokenIndex), ETOKEN_INDEX_NONEXISTENT);
         assert!(tokenIndex > 0, ETOKEN_INDEX_CANNOT_BE_ZERO);
         store.tokens.remove(tokenIndex);
+        if (tokenIndex >= 192) {
+            store.tokenDecimals.remove(tokenIndex);
+        };
     }
 
     /// `reqId` in format of `version:uint8|createdTime:uint40|action:uint8|tokenIndex:uint8|amount:uint64|from:uint8|to:uint8|(TBD):uint112`
@@ -99,7 +110,7 @@ module free_tunnel_sui::req_helpers {
         typeNameExpected == typeNameActual
     }
 
-    public(package) fun amountFrom(reqId: vector<u8>): u64 {
+    public(package) fun amountFromWithoutDecimals(reqId: vector<u8>): u64 {
         let mut amount = reqId[8] as u64;
         let mut i = 9;
         while (i < 16) {
@@ -107,6 +118,22 @@ module free_tunnel_sui::req_helpers {
             i = i + 1;
         };
         assert!(amount > 0, EAMOUNT_CANNOT_BE_ZERO);
+        amount
+    }
+
+    public(package) fun amountFrom(reqId: vector<u8>, store: &ReqHelpersStorage): u64 {
+        let mut amount = amountFromWithoutDecimals(reqId);
+        let tokenIndex = tokenIndexFrom(reqId);
+        if (tokenIndex >= 192) {
+            let decimals = store.tokenDecimals[tokenIndex];
+            if (decimals > 6) {
+                amount = amount * (10 as u64).pow(decimals - 6);
+            } else {
+                amount = amount / (10 as u64).pow(6 - decimals);
+            }
+        } else if (tokenIndex >= 64) {
+            amount = amount * (10 as u64).pow(12);
+        };
         amount
     }
 
@@ -176,7 +203,7 @@ module free_tunnel_sui::req_helpers {
         assert!(createdTimeFrom(reqId) == 0x2233445566);
         assert!(actionFrom(reqId) == 0x77);
         assert!(tokenIndexFrom(reqId) == 0x88);
-        assert!(amountFrom(reqId) == 0x99aabbccddeeff00);
+        assert!(amountFromWithoutDecimals(reqId) == 0x99aabbccddeeff00);
         assertFromChainOnly(reqId);
         assertToChainOnly(reqId);
     }
