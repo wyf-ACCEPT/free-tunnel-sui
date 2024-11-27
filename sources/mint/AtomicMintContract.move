@@ -176,7 +176,7 @@ module free_tunnel_sui::atomic_mint {
         let recipient = storeA.proposedMint[reqId];
         assert!(recipient != DEAD_ADDRESS, EINVALID_REQ_ID);
 
-        let message = req_helpers::messageFromReqSigningMessage(reqId);
+        let message = req_helpers::msgFromReqSigningMessage(reqId);
         permissions::checkMultiSignatures(
             message, r, yParityAndS, executors, exeIndex, clockObject, storeP,
         );
@@ -284,7 +284,7 @@ module free_tunnel_sui::atomic_mint {
         let proposer = storeA.proposedBurn[reqId];
         assert!(proposer != DEAD_ADDRESS, EINVALID_REQ_ID);
 
-        let message = req_helpers::messageFromReqSigningMessage(reqId);
+        let message = req_helpers::msgFromReqSigningMessage(reqId);
         permissions::checkMultiSignatures(
             message, r, yParityAndS, executors, exeIndex, clockObject, storeP,
         );

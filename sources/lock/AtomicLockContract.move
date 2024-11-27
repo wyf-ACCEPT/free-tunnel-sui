@@ -157,7 +157,7 @@ module free_tunnel_sui::atomic_lock {
         let proposer = storeA.proposedLock[reqId];
         assert!(proposer != DEAD_ADDRESS, EINVALID_REQ_ID);
 
-        let message = req_helpers::messageFromReqSigningMessage(reqId);
+        let message = req_helpers::msgFromReqSigningMessage(reqId);
         permissions::checkMultiSignatures(
             message, r, yParityAndS, executors, exeIndex, clockObject, storeP,
         );
@@ -246,7 +246,7 @@ module free_tunnel_sui::atomic_lock {
         let recipient = storeA.proposedUnlock[reqId];
         assert!(recipient != DEAD_ADDRESS, EINVALID_REQ_ID);
 
-        let message = req_helpers::messageFromReqSigningMessage(reqId);
+        let message = req_helpers::msgFromReqSigningMessage(reqId);
         permissions::checkMultiSignatures(
             message, r, yParityAndS, executors, exeIndex, clockObject, storeP,
         );

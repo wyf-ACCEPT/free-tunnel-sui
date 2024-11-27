@@ -2,7 +2,6 @@ module free_tunnel_sui::req_helpers {
 
     // =========================== Packages ===========================
     use sui::hex;
-    use sui::hash;
     use sui::event;
     use sui::table;
     use sui::clock::{Self, Clock};
@@ -153,7 +152,7 @@ module free_tunnel_sui::req_helpers {
     }
 
     #[allow(implicit_const_copy)]
-    public(package) fun messageFromReqSigningMessage(reqId: vector<u8>): vector<u8> {
+    public(package) fun msgFromReqSigningMessage(reqId: vector<u8>): vector<u8> {
         assert!(reqId.length() == 32, EINVALID_REQ_ID_LENGTH);
         let specificAction = actionFrom(reqId) & 0x0f;
 
@@ -191,10 +190,6 @@ module free_tunnel_sui::req_helpers {
         }
     }
 
-    public(package) fun digestFromReqSigningMessage(reqId: vector<u8>): vector<u8> {
-        hash::keccak256(&messageFromReqSigningMessage(reqId))
-    }
-
     public(package) fun assertFromChainOnly(reqId: vector<u8>) {
         assert!(CHAIN == reqId[16], ENOT_FROM_CURRENT_CHAIN);
     }
@@ -224,33 +219,33 @@ module free_tunnel_sui::req_helpers {
     }
 
     #[test]
-    fun testDigestFromReqSigningMessage1() {
+    fun testMsgFromReqSigningMessage1() {
         // action 1: lock-mint
         let reqId = x"112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = x"c22547f03fe03fc9d4239d8b90a224206cec4e8bc6ab011dd1c602bb98633665";
-        assert!(digestFromReqSigningMessage(reqId) == expected);
+        let expected = b"\x19Ethereum Signed Message:\n112[SolvBTC Bridge]\nSign to execute a lock-mint:\n0x112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 
     #[test]
-    fun testDigestFromReqSigningMessage2() {
+    fun testMsgFromReqSigningMessage2() {
         // action 2: burn-unlock
         let reqId = x"112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = x"efde4f52d99f7e2c0307635f3c568ce4dffd8acacf3f95db7da1a4c9d26db803";
-        assert!(digestFromReqSigningMessage(reqId) == expected);
+        let expected = b"\x19Ethereum Signed Message:\n114[SolvBTC Bridge]\nSign to execute a burn-unlock:\n0x112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 
     #[test]
-    fun testDigestFromReqSigningMessage3() {
+    fun testMsgFromReqSigningMessage3() {
         // action 3: burn-mint
         let reqId = x"112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = x"cd5fc5b7e38212f2e405d98251f1f29ce43cb2d1dd368d83bd8e6bc8f65f9b17";
-        assert!(digestFromReqSigningMessage(reqId) == expected);
+        let expected = b"\x19Ethereum Signed Message:\n112[SolvBTC Bridge]\nSign to execute a burn-mint:\n0x112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 
     #[test]
-    fun testDigestFromReqSigningMessage4() {
+    fun testMsgFromReqSigningMessage4() {
         let reqId = x"112233445566048899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        assert!(digestFromReqSigningMessage(reqId) == hash::keccak256(&vector::empty<u8>()));
+        assert!(msgFromReqSigningMessage(reqId) == vector::empty<u8>());
     }
 
 }
