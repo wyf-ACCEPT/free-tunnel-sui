@@ -11,9 +11,33 @@ module free_tunnel_sui::utils {
 
     public fun smallU64ToString(value: u64): vector<u8> {
         let mut buffer = vector::empty<u8>();
-        assert!(value < 10000, ETOSTRING_VALUE_TOO_LARGE);
+        assert!(value < 10000000000, ETOSTRING_VALUE_TOO_LARGE);
+        if (value >= 1000000000) {
+            let byte = (value / 1000000000) as u8 + 48;
+            vector::push_back(&mut buffer, byte);
+        };
+        if (value >= 100000000) {
+            let byte = ((value / 100000000) % 10) as u8 + 48;
+            vector::push_back(&mut buffer, byte);
+        };
+        if (value >= 10000000) {
+            let byte = ((value / 10000000) % 10) as u8 + 48;
+            vector::push_back(&mut buffer, byte);
+        };
+        if (value >= 1000000) {
+            let byte = ((value / 1000000) % 10) as u8 + 48;
+            vector::push_back(&mut buffer, byte);
+        };
+        if (value >= 100000) {
+            let byte = ((value / 100000) % 10) as u8 + 48;
+            vector::push_back(&mut buffer, byte);
+        };
+        if (value >= 10000) {
+            let byte = ((value / 10000) % 10) as u8 + 48;
+            vector::push_back(&mut buffer, byte);
+        };
         if (value >= 1000) {
-            let byte = (value / 1000) as u8 + 48;
+            let byte = ((value / 1000) % 10) as u8 + 48;
             vector::push_back(&mut buffer, byte);
         };
         if (value >= 100) {
@@ -77,23 +101,22 @@ module free_tunnel_sui::utils {
         };
     }
 
+    public(package) fun BRIDGE_CHANNEL(): vector<u8> {
+        b"SolvBTC Bridge"
+    }
+
     #[test]
     fun testSmallU64ToString() {
         assert!(smallU64ToString(0) == b"0");
         assert!(smallU64ToString(1) == b"1");
-        assert!(smallU64ToString(2) == b"2");
         assert!(smallU64ToString(9) == b"9");
         assert!(smallU64ToString(10) == b"10");
         assert!(smallU64ToString(11) == b"11");
-        assert!(smallU64ToString(45) == b"45");
         assert!(smallU64ToString(60) == b"60");
         assert!(smallU64ToString(99) == b"99");
         assert!(smallU64ToString(100) == b"100");
         assert!(smallU64ToString(104) == b"104");
         assert!(smallU64ToString(110) == b"110");
-        assert!(smallU64ToString(111) == b"111");
-        assert!(smallU64ToString(199) == b"199");
-        assert!(smallU64ToString(202) == b"202");
         assert!(smallU64ToString(500) == b"500");
         assert!(smallU64ToString(919) == b"919");
         assert!(smallU64ToString(999) == b"999");
@@ -102,18 +125,33 @@ module free_tunnel_sui::utils {
         assert!(smallU64ToString(3417) == b"3417");
         assert!(smallU64ToString(9283) == b"9283");
         assert!(smallU64ToString(9999) == b"9999");
+        assert!(smallU64ToString(10000) == b"10000");
+        assert!(smallU64ToString(10001) == b"10001");
+        assert!(smallU64ToString(99999) == b"99999");
+        assert!(smallU64ToString(100000) == b"100000");
+        assert!(smallU64ToString(100001) == b"100001");
+        assert!(smallU64ToString(999999) == b"999999");
+        assert!(smallU64ToString(1000000) == b"1000000");
+        assert!(smallU64ToString(9999999) == b"9999999");
+        assert!(smallU64ToString(10000000) == b"10000000");
+        assert!(smallU64ToString(99999999) == b"99999999");
+        assert!(smallU64ToString(100000000) == b"100000000");
+        assert!(smallU64ToString(999999999) == b"999999999");
+        assert!(smallU64ToString(1000000000) == b"1000000000");
+        assert!(smallU64ToString(1732709334) == b"1732709334");     // Timestamp of `2024-11-27 12:08:54`
+        assert!(smallU64ToString(9999999999) == b"9999999999");
     }
 
     #[test]
     #[expected_failure(abort_code = ETOSTRING_VALUE_TOO_LARGE)]
     fun testSmallU64ToStringTooLargeFailure1() {
-        smallU64ToString(10000);
+        smallU64ToString(10000000000);
     }
 
     #[test]
     #[expected_failure(abort_code = ETOSTRING_VALUE_TOO_LARGE)]
     fun testSmallU64ToStringTooLargeFailure2() {
-        smallU64ToString(12000);
+        smallU64ToString(12000000000);
     }
 
     #[test]

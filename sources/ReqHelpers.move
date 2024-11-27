@@ -6,12 +6,11 @@ module free_tunnel_sui::req_helpers {
     use sui::table;
     use sui::clock::{Self, Clock};
     use std::type_name::{Self, TypeName};
-    use free_tunnel_sui::utils::smallU64ToString;
+    use free_tunnel_sui::utils::{smallU64ToString, BRIDGE_CHANNEL};
 
 
     // =========================== Constants ==========================
     const CHAIN: u8 = 0xa0;
-    const BRIDGE_CHANNEL: vector<u8> = b"SolvBTC Bridge";
     const PROPOSE_PERIOD: u64 = 172800;         // 48 hours
     const ETH_SIGN_HEADER: vector<u8> = b"\x19Ethereum Signed Message:\n";
 
@@ -149,7 +148,6 @@ module free_tunnel_sui::req_helpers {
         amount
     }
 
-    #[allow(implicit_const_copy)]
     public(package) fun msgFromReqSigningMessage(reqId: vector<u8>): vector<u8> {
         assert!(reqId.length() == 32, EINVALID_REQ_ID_LENGTH);
         let specificAction = actionFrom(reqId) & 0x0f;
@@ -158,8 +156,8 @@ module free_tunnel_sui::req_helpers {
             1 => {
                 (vector[
                     ETH_SIGN_HEADER,
-                    smallU64ToString(3 + BRIDGE_CHANNEL.length() + 29 + 66),
-                    b"[", BRIDGE_CHANNEL, b"]\n",
+                    smallU64ToString(3 + BRIDGE_CHANNEL().length() + 29 + 66),
+                    b"[", BRIDGE_CHANNEL(), b"]\n",
                     b"Sign to execute a lock-mint:\n",
                     b"0x", hex::encode(reqId),
                 ]).flatten()
@@ -167,8 +165,8 @@ module free_tunnel_sui::req_helpers {
             2 => {
                 (vector[
                     ETH_SIGN_HEADER,
-                    smallU64ToString(3 + BRIDGE_CHANNEL.length() + 31 + 66),
-                    b"[", BRIDGE_CHANNEL, b"]\n",
+                    smallU64ToString(3 + BRIDGE_CHANNEL().length() + 31 + 66),
+                    b"[", BRIDGE_CHANNEL(), b"]\n",
                     b"Sign to execute a burn-unlock:\n",
                     b"0x", hex::encode(reqId),
                 ]).flatten()
@@ -176,8 +174,8 @@ module free_tunnel_sui::req_helpers {
             3 => {
                 (vector[
                     ETH_SIGN_HEADER,
-                    smallU64ToString(3 + BRIDGE_CHANNEL.length() + 29 + 66),
-                    b"[", BRIDGE_CHANNEL, b"]\n",
+                    smallU64ToString(3 + BRIDGE_CHANNEL().length() + 29 + 66),
+                    b"[", BRIDGE_CHANNEL(), b"]\n",
                     b"Sign to execute a burn-mint:\n",
                     b"0x", hex::encode(reqId),
                 ]).flatten()

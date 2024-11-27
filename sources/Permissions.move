@@ -7,7 +7,7 @@ module free_tunnel_sui::permissions {
     use sui::event;
     use sui::table;
     use sui::clock::{Self, Clock};
-    use free_tunnel_sui::utils::{recoverEthAddress, smallU64ToString, smallU64Log10, assertEthAddressList};
+    use free_tunnel_sui::utils::{recoverEthAddress, smallU64ToString, smallU64Log10, assertEthAddressList, BRIDGE_CHANNEL};
 
 
     // =========================== Constants ==========================
@@ -155,11 +155,16 @@ module free_tunnel_sui::permissions {
 
         let msg = vector[
             ETH_SIGN_HEADER,
-            smallU64ToString(29 + 43 * newExecutors.length() + 11 + smallU64Log10(threshold) + 1),
+            smallU64ToString(
+                3 + BRIDGE_CHANNEL().length() + (29 + 43 * newExecutors.length()) 
+                + (12 + smallU64Log10(threshold) + 1) + (15 + 10) + (25 + smallU64Log10(exeIndex) + 1)
+            ),
+            b"[", BRIDGE_CHANNEL(), b"]\n",
             b"Sign to update executors to:\n",
             joinAddressList(newExecutors),
-            b"Threshold: ",
-            smallU64ToString(threshold)
+            b"Threshold: ", smallU64ToString(threshold), b"\n",
+            b"Active since: ", smallU64ToString(activeSince), b"\n",
+            b"Current executors index: ", smallU64ToString(exeIndex)
         ].flatten();
 
         checkMultiSignatures(msg, r, yParityAndS, executors, exeIndex, clockObject, store);
