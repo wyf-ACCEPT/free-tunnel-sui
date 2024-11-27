@@ -20,11 +20,10 @@ module free_tunnel_sui::atomic_mint {
     const EINVALID_RECIPIENT: u64 = 51;
     const ENOT_LOCK_MINT: u64 = 52;
     const ENOT_BURN_MINT: u64 = 53;
-    const ETOKEN_INDEX_MISMATCH: u64 = 54;
-    const EWAIT_UNTIL_EXPIRED: u64 = 55;
-    const EINVALID_PROPOSER: u64 = 56;
-    const EMISMATCH_COIN_AMOUNT: u64 = 57;
-    const ENOT_BURN_UNLOCK: u64 = 58;
+    const EWAIT_UNTIL_EXPIRED: u64 = 54;
+    const EINVALID_PROPOSER: u64 = 55;
+    const EMISMATCH_COIN_AMOUNT: u64 = 56;
+    const ENOT_BURN_UNLOCK: u64 = 57;
 
 
     // ============================ Storage ===========================
@@ -112,7 +111,7 @@ module free_tunnel_sui::atomic_mint {
         req_helpers::removeTokenInternal(tokenIndex, storeR);
     }
 
-    public entry fun proposeMint(
+    public entry fun proposeMint<CoinType>(
         reqId: vector<u8>, 
         recipient: address, 
         storeA: &mut AtomicMintStorage, 
@@ -124,10 +123,10 @@ module free_tunnel_sui::atomic_mint {
         permissions::assertOnlyProposer(storeP, ctx);
         req_helpers::assertToChainOnly(reqId);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 1, ENOT_LOCK_MINT);
-        proposeMintInternal(reqId, recipient, storeA, storeR, clockObject);
+        proposeMintInternal<CoinType>(reqId, recipient, storeA, storeR, clockObject);
     }
 
-    public entry fun proposeMintFromBurn(
+    public entry fun proposeMintFromBurn<CoinType>(
         reqId: vector<u8>, 
         recipient: address, 
         storeA: &mut AtomicMintStorage, 
@@ -139,22 +138,22 @@ module free_tunnel_sui::atomic_mint {
         permissions::assertOnlyProposer(storeP, ctx);
         req_helpers::assertToChainOnly(reqId);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 3, ENOT_BURN_MINT);
-        proposeMintInternal(reqId, recipient, storeA, storeR, clockObject);
+        proposeMintInternal<CoinType>(reqId, recipient, storeA, storeR, clockObject);
     }
 
-    fun proposeMintInternal(
+    fun proposeMintInternal<CoinType>(
         reqId: vector<u8>, 
         recipient: address, 
         storeA: &mut AtomicMintStorage, 
         storeR: &ReqHelpersStorage,
         clockObject: &Clock, 
     ) {
-        req_helpers::createdTimeFromCheck(reqId, clockObject);
+        req_helpers::checkCreatedTimeFrom(reqId, clockObject);
         assert!(!storeA.proposedMint.contains(reqId), EINVALID_REQ_ID);
         assert!(recipient != DEAD_ADDRESS, EINVALID_RECIPIENT);
 
         req_helpers::amountFrom(reqId, storeR);
-        req_helpers::tokenIndexFromCheck(reqId, storeR);
+        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         storeA.proposedMint.add(reqId, recipient);
 
         event::emit(TokenMintProposed{ reqId, recipient });
@@ -184,8 +183,7 @@ module free_tunnel_sui::atomic_mint {
         *storeA.proposedMint.borrow_mut(reqId) = DEAD_ADDRESS;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
-        assert!(req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR), ETOKEN_INDEX_MISMATCH);
+        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
         mintable_coin::mintWithTreasuryBox(amount, recipient, treasuryCapBox, ctx);
         event::emit(TokenMintExecuted{ reqId, recipient });
@@ -246,17 +244,16 @@ module free_tunnel_sui::atomic_mint {
         clockObject: &Clock,
         ctx: &mut TxContext,
     ) {
-        req_helpers::createdTimeFromCheck(reqId, clockObject);
+        req_helpers::checkCreatedTimeFrom(reqId, clockObject);
         assert!(!storeA.proposedBurn.contains(reqId), EINVALID_REQ_ID);
 
         let proposer = ctx.sender();
         assert!(proposer != DEAD_ADDRESS, EINVALID_PROPOSER);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
+        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         storeA.proposedBurn.add(reqId, proposer);
 
-        req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR);
         assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
 
         let pendingBalanceBox = PendingBalanceBox<CoinType> {
@@ -292,8 +289,7 @@ module free_tunnel_sui::atomic_mint {
         *storeA.proposedBurn.borrow_mut(reqId) = DEAD_ADDRESS;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
-        req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR);
+        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
         let PendingBalanceBox { id, balance } = pendingBalanceBox;
         object::delete(id);
@@ -322,8 +318,7 @@ module free_tunnel_sui::atomic_mint {
         storeA.proposedBurn.remove(reqId);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
-        req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR);
+        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
         let PendingBalanceBox { id, balance } = pendingBalanceBox;
         object::delete(id);

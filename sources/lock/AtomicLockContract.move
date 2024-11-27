@@ -119,7 +119,7 @@ module free_tunnel_sui::atomic_lock {
         ctx: &mut TxContext,
     ) {
         req_helpers::assertFromChainOnly(reqId);
-        req_helpers::createdTimeFromCheck(reqId, clockObject);
+        req_helpers::checkCreatedTimeFrom(reqId, clockObject);
         let action = req_helpers::actionFrom(reqId);
         assert!(action & 0x0f == 1, ENOT_LOCK_MINT);
         assert!(!storeA.proposedLock.contains(reqId), EINVALID_REQ_ID);
@@ -128,10 +128,9 @@ module free_tunnel_sui::atomic_lock {
         assert!(proposer != DEAD_ADDRESS, EINVALID_PROPOSER);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
+        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         storeA.proposedLock.add(reqId, proposer);
 
-        req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR);
         assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
 
         // No vault here, so just transfer from proposer to this contract
@@ -143,7 +142,7 @@ module free_tunnel_sui::atomic_lock {
         event::emit(TokenLockProposed{ reqId, proposer });
     }
 
-    public entry fun executeLock(
+    public entry fun executeLock<CoinType>(
         reqId: vector<u8>,
         r: vector<vector<u8>>,
         yParityAndS: vector<vector<u8>>,
@@ -165,7 +164,7 @@ module free_tunnel_sui::atomic_lock {
         *storeA.proposedLock.borrow_mut(reqId) = DEAD_ADDRESS;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         if (storeA.lockedBalanceOf.contains(tokenIndex)) {
             let originalAmount = storeA.lockedBalanceOf[tokenIndex];
             *storeA.lockedBalanceOf.borrow_mut(tokenIndex) = originalAmount + amount;
@@ -193,8 +192,7 @@ module free_tunnel_sui::atomic_lock {
         storeA.proposedLock.remove(reqId);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
-        req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR);
+        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         
         // No vault here, so just transfer from this contract to proposer
         let PendingBalanceBox { id, balance } = pendingBalanceBox;
@@ -206,7 +204,7 @@ module free_tunnel_sui::atomic_lock {
         event::emit(TokenLockCancelled{ reqId, proposer });
     }
 
-    public entry fun proposeUnlock(
+    public entry fun proposeUnlock<CoinType>(
         reqId: vector<u8>,
         recipient: address,
         storeA: &mut AtomicLockStorage,
@@ -217,13 +215,13 @@ module free_tunnel_sui::atomic_lock {
     ) {
         permissions::assertOnlyProposer(storeP, ctx);
         req_helpers::assertFromChainOnly(reqId);
-        req_helpers::createdTimeFromCheck(reqId, clockObject);
+        req_helpers::checkCreatedTimeFrom(reqId, clockObject);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 2, ENOT_BURN_UNLOCK);
         assert!(!storeA.proposedUnlock.contains(reqId), EINVALID_REQ_ID);
         assert!(recipient != DEAD_ADDRESS, EINVALID_RECIPIENT);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         let originalAmount = storeA.lockedBalanceOf[tokenIndex];
         *storeA.lockedBalanceOf.borrow_mut(tokenIndex) = originalAmount - amount;
         storeA.proposedUnlock.add(reqId, recipient);
@@ -254,8 +252,7 @@ module free_tunnel_sui::atomic_lock {
         *storeA.proposedUnlock.borrow_mut(reqId) = DEAD_ADDRESS;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
-        req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR);
+        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
         let PendingBalanceBox { id, balance } = pendingBalanceBox;
         object::delete(id);
@@ -266,7 +263,7 @@ module free_tunnel_sui::atomic_lock {
         event::emit(TokenUnlockExecuted{ reqId, recipient });
     }
 
-    public entry fun cancelUnlock(
+    public entry fun cancelUnlock<CoinType>(
         reqId: vector<u8>,
         storeA: &mut AtomicLockStorage,
         storeR: &mut ReqHelpersStorage,
@@ -282,7 +279,7 @@ module free_tunnel_sui::atomic_lock {
         storeA.proposedUnlock.remove(reqId);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         let originalAmount = storeA.lockedBalanceOf[tokenIndex];
         *storeA.lockedBalanceOf.borrow_mut(tokenIndex) = originalAmount + amount;
         event::emit(TokenUnlockCancelled{ reqId, recipient });

@@ -25,6 +25,7 @@ module free_tunnel_sui::req_helpers {
     const ECREATED_TIME_TOO_LATE: u64 = 7;
     const EAMOUNT_CANNOT_BE_ZERO: u64 = 8;
     const ETOKEN_INDEX_WRONG: u64 = 9;
+    const ETOKEN_TYPE_MISMATCH: u64 = 10;
     
 
     // ============================ Storage ===========================
@@ -97,7 +98,7 @@ module free_tunnel_sui::req_helpers {
         time
     }
 
-    public(package) fun createdTimeFromCheck(reqId: vector<u8>, clockObject: &Clock): u64 {
+    public(package) fun checkCreatedTimeFrom(reqId: vector<u8>, clockObject: &Clock): u64 {
         let time = createdTimeFrom(reqId);
         assert!(time > clock::timestamp_ms(clockObject) / 1000 - PROPOSE_PERIOD, ECREATED_TIME_TOO_EARLY);
         assert!(time < clock::timestamp_ms(clockObject) / 1000 + 60, ECREATED_TIME_TOO_LATE);
@@ -108,23 +109,20 @@ module free_tunnel_sui::req_helpers {
         reqId[6]
     }
 
-    public(package) fun tokenIndexFrom(reqId: vector<u8>): u8 {
+    fun decodeTokenIndex(reqId: vector<u8>): u8 {
         reqId[7]
     }
 
-    public(package) fun tokenIndexFromCheck(reqId: vector<u8>, store: &ReqHelpersStorage): u8 {
-        let tokenIndex = tokenIndexFrom(reqId);
+    public(package) fun tokenIndexFrom<CoinType>(reqId: vector<u8>, store: &ReqHelpersStorage): u8 {
+        let tokenIndex = decodeTokenIndex(reqId);
         assert!(store.tokens.contains(tokenIndex), ETOKEN_INDEX_NONEXISTENT);
+        let tokenTypeExpected = store.tokens[tokenIndex];
+        let tokenTypeActual = type_name::get<CoinType>();
+        assert!(tokenTypeExpected == tokenTypeActual, ETOKEN_TYPE_MISMATCH);
         tokenIndex
     }
 
-    public(package) fun tokenIndexMatchCoinType<CoinType>(tokenIndex: u8, store: &ReqHelpersStorage): bool {
-        let typeNameExpected = store.tokens[tokenIndex];
-        let typeNameActual = type_name::get<CoinType>();
-        typeNameExpected == typeNameActual
-    }
-
-    public(package) fun amountFromWithoutDecimals(reqId: vector<u8>): u64 {
+    fun decodeAmount(reqId: vector<u8>): u64 {
         let mut amount = reqId[8] as u64;
         let mut i = 9;
         while (i < 16) {
@@ -136,8 +134,8 @@ module free_tunnel_sui::req_helpers {
     }
 
     public(package) fun amountFrom(reqId: vector<u8>, store: &ReqHelpersStorage): u64 {
-        let mut amount = amountFromWithoutDecimals(reqId);
-        let tokenIndex = tokenIndexFrom(reqId);
+        let mut amount = decodeAmount(reqId);
+        let tokenIndex = decodeTokenIndex(reqId);
         if (tokenIndex >= 192) {
             let decimals = store.tokenDecimals[tokenIndex];
             if (decimals > 6) {
@@ -212,8 +210,8 @@ module free_tunnel_sui::req_helpers {
         assert!(versionFrom(reqId) == 0x11);
         assert!(createdTimeFrom(reqId) == 0x2233445566);
         assert!(actionFrom(reqId) == 0x77);
-        assert!(tokenIndexFrom(reqId) == 0x88);
-        assert!(amountFromWithoutDecimals(reqId) == 0x99aabbccddeeff00);
+        assert!(decodeTokenIndex(reqId) == 0x88);
+        assert!(decodeAmount(reqId) == 0x99aabbccddeeff00);
         assertFromChainOnly(reqId);
         assertToChainOnly(reqId);
     }
