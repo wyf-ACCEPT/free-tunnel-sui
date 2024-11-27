@@ -93,8 +93,8 @@ module free_tunnel_sui::atomic_mint {
     public entry fun addToken<CoinType>(
         tokenIndex: u8,
         decimals: u8,
-        storeP: &mut PermissionsStorage, 
-        storeR: &mut ReqHelpersStorage, 
+        storeP: &mut PermissionsStorage,
+        storeR: &mut ReqHelpersStorage,
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyAdmin(storeP, ctx);
@@ -103,8 +103,8 @@ module free_tunnel_sui::atomic_mint {
 
     public entry fun removeToken(
         tokenIndex: u8,
-        storeP: &mut PermissionsStorage, 
-        storeR: &mut ReqHelpersStorage, 
+        storeP: &mut PermissionsStorage,
+        storeR: &mut ReqHelpersStorage,
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyAdmin(storeP, ctx);
@@ -112,12 +112,12 @@ module free_tunnel_sui::atomic_mint {
     }
 
     public entry fun proposeMint<CoinType>(
-        reqId: vector<u8>, 
-        recipient: address, 
-        storeA: &mut AtomicMintStorage, 
-        storeP: &mut PermissionsStorage, 
-        storeR: &mut ReqHelpersStorage, 
-        clockObject: &Clock, 
+        reqId: vector<u8>,
+        recipient: address,
+        storeA: &mut AtomicMintStorage,
+        storeP: &mut PermissionsStorage,
+        storeR: &mut ReqHelpersStorage,
+        clockObject: &Clock,
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyProposer(storeP, ctx);
@@ -127,12 +127,12 @@ module free_tunnel_sui::atomic_mint {
     }
 
     public entry fun proposeMintFromBurn<CoinType>(
-        reqId: vector<u8>, 
-        recipient: address, 
-        storeA: &mut AtomicMintStorage, 
-        storeP: &mut PermissionsStorage, 
-        storeR: &mut ReqHelpersStorage, 
-        clockObject: &Clock, 
+        reqId: vector<u8>,
+        recipient: address,
+        storeA: &mut AtomicMintStorage,
+        storeP: &mut PermissionsStorage,
+        storeR: &mut ReqHelpersStorage,
+        clockObject: &Clock,
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyProposer(storeP, ctx);
@@ -142,11 +142,11 @@ module free_tunnel_sui::atomic_mint {
     }
 
     fun proposeMintInternal<CoinType>(
-        reqId: vector<u8>, 
-        recipient: address, 
-        storeA: &mut AtomicMintStorage, 
+        reqId: vector<u8>,
+        recipient: address,
+        storeA: &mut AtomicMintStorage,
         storeR: &ReqHelpersStorage,
-        clockObject: &Clock, 
+        clockObject: &Clock,
     ) {
         req_helpers::checkCreatedTimeFrom(reqId, clockObject);
         assert!(!storeA.proposedMint.contains(reqId), EINVALID_REQ_ID);
@@ -197,7 +197,7 @@ module free_tunnel_sui::atomic_mint {
         let recipient = storeA.proposedMint[reqId];
         assert!(recipient != DEAD_ADDRESS, EINVALID_REQ_ID);
         assert!(
-            clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId) 
+            clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
             + EXPIRE_EXTRA_PERIOD, EWAIT_UNTIL_EXPIRED
         );
 
@@ -237,7 +237,7 @@ module free_tunnel_sui::atomic_mint {
     }
 
     fun proposeBurnInternal<CoinType>(
-        reqId: vector<u8>, 
+        reqId: vector<u8>,
         coinObject: Coin<CoinType>,
         storeA: &mut AtomicMintStorage,
         storeR: &ReqHelpersStorage,
@@ -311,7 +311,7 @@ module free_tunnel_sui::atomic_mint {
         let proposer = storeA.proposedBurn[reqId];
         assert!(proposer != DEAD_ADDRESS, EINVALID_REQ_ID);
         assert!(
-            clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId) 
+            clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
             + EXPIRE_PERIOD, EWAIT_UNTIL_EXPIRED
         );
 

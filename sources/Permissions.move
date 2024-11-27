@@ -38,7 +38,7 @@ module free_tunnel_sui::permissions {
     public struct PermissionsStorage has key, store {
         id: UID,
         _admin: address,
-        
+
         _proposerIndex: table::Table<address, u64>,
         _proposerList: vector<address>,
 
@@ -154,11 +154,11 @@ module free_tunnel_sui::permissions {
         );
 
         let msg = vector[
-            ETH_SIGN_HEADER, 
+            ETH_SIGN_HEADER,
             smallU64ToString(29 + 43 * newExecutors.length() + 11 + smallU64Log10(threshold) + 1),
             b"Sign to update executors to:\n",
             joinAddressList(newExecutors),
-            b"Threshold: ", 
+            b"Threshold: ",
             smallU64ToString(threshold)
         ].flatten();
 
@@ -230,9 +230,9 @@ module free_tunnel_sui::permissions {
 
     public(package) fun checkMultiSignatures(
         msg: vector<u8>,     // Can only ecrecover from raw message in Sui
-        r: vector<vector<u8>>, 
-        yParityAndS: vector<vector<u8>>, 
-        executors: vector<vector<u8>>, 
+        r: vector<vector<u8>>,
+        yParityAndS: vector<vector<u8>>,
+        executors: vector<vector<u8>>,
         exeIndex: u64,
         clockObject: &Clock,
         store: &PermissionsStorage,
@@ -306,7 +306,7 @@ module free_tunnel_sui::permissions {
             x"000000000000000000000000000000000000beef"
         ];
         let result = joinAddressList(addrs);
-        let expected = 
+        let expected =
         b"0x00112233445566778899aabbccddeeff00112233\n0x000000000000000000000000000000000000beef\n";
         assert!(result == expected);
         assert!(expected.length() == 43 * 2);

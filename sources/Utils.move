@@ -40,6 +40,43 @@ module free_tunnel_sui::utils {
         result  // Returns 0 if given 0. Same as Solidity
     }
 
+    public fun ethAddressFromPubkey(pk: vector<u8>): vector<u8> {
+        // Public key `pk` should be uncompressed. Note that ETH pubkey has an extra 0x04 prefix (uncompressed)
+        assert!(vector::length(&pk) == 64, EINVALID_PUBLIC_KEY);
+        let hashValue = hash::keccak256(&pk);
+        let mut ethAddr = vector::empty<u8>();
+        let mut i = 12;
+        while (i < 32) {
+            vector::push_back(&mut ethAddr, hashValue[i]);
+            i = i + 1;
+        };
+        ethAddr
+    }
+
+    public fun recoverEthAddress(msg: vector<u8>, r: vector<u8>, yParityAndS: vector<u8>): vector<u8> {
+        let mut s = yParityAndS;
+        let v = yParityAndS[0] >> 7;
+        *vector::borrow_mut(&mut s, 0) = s[0] & 0x7f;
+
+        let signature65 = vector::flatten(vector[r, s, vector::singleton(v)]);
+        let compressedPk = ecdsa_k1::secp256k1_ecrecover(&signature65, &msg, 0);
+        let mut pk = ecdsa_k1::decompress_pubkey(&compressedPk);
+        vector::remove(&mut pk, 0);     // drop '04' prefix
+        ethAddressFromPubkey(pk)
+    }
+
+    fun assertEthAddress(addr: vector<u8>) {
+        assert!(addr.length() == 20, EINVALID_ETH_ADDRESS);
+    }
+
+    public fun assertEthAddressList(addrs: vector<vector<u8>>) {
+        let mut i = 0;
+        while (i < addrs.length()) {
+            assertEthAddress(addrs[i]);
+            i = i + 1;
+        };
+    }
+
     #[test]
     fun testSmallU64ToString() {
         assert!(smallU64ToString(0) == b"0");
@@ -105,32 +142,6 @@ module free_tunnel_sui::utils {
         smallU64Log10(12000);
     }
 
-
-    public fun ethAddressFromPubkey(pk: vector<u8>): vector<u8> {
-        // Public key `pk` should be uncompressed. Note that ETH pubkey has an extra 0x04 prefix (uncompressed)
-        assert!(vector::length(&pk) == 64, EINVALID_PUBLIC_KEY);
-        let hashValue = hash::keccak256(&pk);
-        let mut ethAddr = vector::empty<u8>();
-        let mut i = 12;
-        while (i < 32) {
-            vector::push_back(&mut ethAddr, hashValue[i]);
-            i = i + 1;
-        };
-        ethAddr
-    }
-
-    public fun recoverEthAddress(msg: vector<u8>, r: vector<u8>, yParityAndS: vector<u8>): vector<u8> {
-        let mut s = yParityAndS;
-        let v = yParityAndS[0] >> 7;
-        *vector::borrow_mut(&mut s, 0) = s[0] & 0x7f;
-
-        let signature65 = vector::flatten(vector[r, s, vector::singleton(v)]);
-        let compressedPk = ecdsa_k1::secp256k1_ecrecover(&signature65, &msg, 0);
-        let mut pk = ecdsa_k1::decompress_pubkey(&compressedPk);
-        vector::remove(&mut pk, 0);     // drop '04' prefix
-        ethAddressFromPubkey(pk)
-    }
-
     #[test]
     fun testEthAddressFromPubkey() {
         let pk = x"5139c6f948e38d3ffa36df836016aea08f37a940a91323f2a785d17be4353e382b488d0c543c505ec40046afbb2543ba6bb56ca4e26dc6abee13e9add6b7e189";
@@ -145,20 +156,6 @@ module free_tunnel_sui::utils {
         let yParityAndS = x"f43065a96dc53a21b4eb4ce96a84a7c4103e3485b0c87d868df545fcce0f3983";
         let ethAddr = recoverEthAddress(message, r, yParityAndS);
         assert!(ethAddr == x"2eF8a51F8fF129DBb874A0efB021702F59C1b211", 1);
-    }
-
-
-
-    fun assertEthAddress(addr: vector<u8>) {
-        assert!(addr.length() == 20, EINVALID_ETH_ADDRESS);
-    }
-
-    public fun assertEthAddressList(addrs: vector<vector<u8>>) {
-        let mut i = 0;
-        while (i < addrs.length()) {
-            assertEthAddress(addrs[i]);
-            i = i + 1;
-        };
     }
 
     #[test]
@@ -179,5 +176,4 @@ module free_tunnel_sui::utils {
         ];
         assertEthAddressList(addrs);
     }
-
 }

@@ -26,7 +26,7 @@ module free_tunnel_sui::req_helpers {
     const EAMOUNT_CANNOT_BE_ZERO: u64 = 8;
     const ETOKEN_INDEX_WRONG: u64 = 9;
     const ETOKEN_TYPE_MISMATCH: u64 = 10;
-    
+
 
     // ============================ Storage ===========================
     public struct ReqHelpersStorage has key, store {
@@ -157,7 +157,7 @@ module free_tunnel_sui::req_helpers {
         match (specificAction) {
             1 => {
                 (vector[
-                    ETH_SIGN_HEADER, 
+                    ETH_SIGN_HEADER,
                     smallU64ToString(3 + BRIDGE_CHANNEL.length() + 29 + 66),
                     b"[", BRIDGE_CHANNEL, b"]\n",
                     b"Sign to execute a lock-mint:\n",
@@ -166,7 +166,7 @@ module free_tunnel_sui::req_helpers {
             },
             2 => {
                 (vector[
-                    ETH_SIGN_HEADER, 
+                    ETH_SIGN_HEADER,
                     smallU64ToString(3 + BRIDGE_CHANNEL.length() + 31 + 66),
                     b"[", BRIDGE_CHANNEL, b"]\n",
                     b"Sign to execute a burn-unlock:\n",
@@ -175,7 +175,7 @@ module free_tunnel_sui::req_helpers {
             },
             3 => {
                 (vector[
-                    ETH_SIGN_HEADER, 
+                    ETH_SIGN_HEADER,
                     smallU64ToString(3 + BRIDGE_CHANNEL.length() + 29 + 66),
                     b"[", BRIDGE_CHANNEL, b"]\n",
                     b"Sign to execute a burn-mint:\n",

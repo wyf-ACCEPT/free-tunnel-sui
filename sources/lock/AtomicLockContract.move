@@ -92,8 +92,8 @@ module free_tunnel_sui::atomic_lock {
     public entry fun addToken<CoinType>(
         tokenIndex: u8,
         decimals: u8,
-        storeP: &mut PermissionsStorage, 
-        storeR: &mut ReqHelpersStorage, 
+        storeP: &mut PermissionsStorage,
+        storeR: &mut ReqHelpersStorage,
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyAdmin(storeP, ctx);
@@ -102,8 +102,8 @@ module free_tunnel_sui::atomic_lock {
 
     public entry fun removeToken(
         tokenIndex: u8,
-        storeP: &mut PermissionsStorage, 
-        storeR: &mut ReqHelpersStorage, 
+        storeP: &mut PermissionsStorage,
+        storeR: &mut ReqHelpersStorage,
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyAdmin(storeP, ctx);
@@ -111,11 +111,11 @@ module free_tunnel_sui::atomic_lock {
     }
 
     public entry fun proposeLock<CoinType>(
-        reqId: vector<u8>, 
+        reqId: vector<u8>,
         coinObject: Coin<CoinType>,
-        storeA: &mut AtomicLockStorage, 
-        storeR: &mut ReqHelpersStorage, 
-        clockObject: &Clock, 
+        storeA: &mut AtomicLockStorage,
+        storeR: &mut ReqHelpersStorage,
+        clockObject: &Clock,
         ctx: &mut TxContext,
     ) {
         req_helpers::assertFromChainOnly(reqId);
@@ -185,7 +185,7 @@ module free_tunnel_sui::atomic_lock {
         let proposer = storeA.proposedLock[reqId];
         assert!(proposer != DEAD_ADDRESS, EINVALID_REQ_ID);
         assert!(
-            clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId) 
+            clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
             + EXPIRE_PERIOD, EWAIT_UNTIL_EXPIRED
         );
 
@@ -193,7 +193,7 @@ module free_tunnel_sui::atomic_lock {
 
         let amount = req_helpers::amountFrom(reqId, storeR);
         req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
-        
+
         // No vault here, so just transfer from this contract to proposer
         let PendingBalanceBox { id, balance } = pendingBalanceBox;
         object::delete(id);
@@ -272,7 +272,7 @@ module free_tunnel_sui::atomic_lock {
         let recipient = storeA.proposedUnlock[reqId];
         assert!(recipient != DEAD_ADDRESS, EINVALID_REQ_ID);
         assert!(
-            clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId) 
+            clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
             + EXPIRE_EXTRA_PERIOD, EWAIT_UNTIL_EXPIRED
         );
 
