@@ -10,8 +10,8 @@ module free_tunnel_sui::req_helpers {
 
 
     // =========================== Constants ==========================
-    const CHAIN: u8 = 0x40;     // TODO: Which id should be used?
-    const BRIDGE_CHANNEL: vector<u8> = b"Merlin ERC20 Bridge";      // TODO: Change name?
+    const CHAIN: u8 = 0xa0;
+    const BRIDGE_CHANNEL: vector<u8> = b"SolvBTC Bridge";
     const PROPOSE_PERIOD: u64 = 172800;         // 48 hours
     const ETH_SIGN_HEADER: vector<u8> = b"\x19Ethereum Signed Message:\n";
 
