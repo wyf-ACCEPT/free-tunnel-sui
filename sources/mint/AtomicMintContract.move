@@ -1,9 +1,10 @@
 module free_tunnel_sui::atomic_mint {
 
     // =========================== Packages ===========================
+    use sui::bag;
     use sui::event;
     use sui::table;
-    use sui::balance::Balance;
+    use sui::pay;
     use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
     use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage};
@@ -22,8 +23,7 @@ module free_tunnel_sui::atomic_mint {
     const ENOT_BURN_MINT: u64 = 53;
     const EWAIT_UNTIL_EXPIRED: u64 = 54;
     const EINVALID_PROPOSER: u64 = 55;
-    const EMISMATCH_COIN_AMOUNT: u64 = 56;
-    const ENOT_BURN_UNLOCK: u64 = 57;
+    const ENOT_BURN_UNLOCK: u64 = 56;
 
 
     // ============================ Storage ===========================
@@ -31,11 +31,7 @@ module free_tunnel_sui::atomic_mint {
         id: UID,
         proposedMint: table::Table<vector<u8>, address>,
         proposedBurn: table::Table<vector<u8>, address>,
-    }
-
-    public struct PendingBalanceBox<phantom CoinType> has key, store {
-        id: UID,
-        balance: Balance<CoinType>,
+        coinsPendingBurn: bag::Bag,
     }
 
     public struct TokenMintProposed has copy, drop {
@@ -84,6 +80,7 @@ module free_tunnel_sui::atomic_mint {
             id: object::new(ctx),
             proposedMint: table::new(ctx),
             proposedBurn: table::new(ctx),
+            coinsPendingBurn: bag::new(ctx),
         };
         transfer::public_share_object(atomicMintStorage);
     }
@@ -208,7 +205,7 @@ module free_tunnel_sui::atomic_mint {
 
     public entry fun proposeBurn<CoinType>(
         reqId: vector<u8>,
-        coinObject: Coin<CoinType>,
+        coinList: vector<Coin<CoinType>>,
         storeA: &mut AtomicMintStorage,
         storeR: &ReqHelpersStorage,
         clockObject: &Clock,
@@ -217,13 +214,13 @@ module free_tunnel_sui::atomic_mint {
         req_helpers::assertToChainOnly(reqId);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 2, ENOT_BURN_UNLOCK);
         proposeBurnInternal<CoinType>(
-            reqId, coinObject, storeA, storeR, clockObject, ctx,
+            reqId, coinList, storeA, storeR, clockObject, ctx,
         );
     }
 
     public entry fun proposeBurnForMint<CoinType>(
         reqId: vector<u8>,
-        coinObject: Coin<CoinType>,
+        coinList: vector<Coin<CoinType>>,
         storeA: &mut AtomicMintStorage,
         storeR: &ReqHelpersStorage,
         clockObject: &Clock,
@@ -232,13 +229,14 @@ module free_tunnel_sui::atomic_mint {
         req_helpers::assertFromChainOnly(reqId);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 3, ENOT_BURN_MINT);
         proposeBurnInternal<CoinType>(
-            reqId, coinObject, storeA, storeR, clockObject, ctx,
+            reqId, coinList, storeA, storeR, clockObject, ctx,
         );
     }
 
+    #[allow(lint(self_transfer))]
     fun proposeBurnInternal<CoinType>(
         reqId: vector<u8>,
-        coinObject: Coin<CoinType>,
+        coinList: vector<Coin<CoinType>>,
         storeA: &mut AtomicMintStorage,
         storeR: &ReqHelpersStorage,
         clockObject: &Clock,
@@ -251,16 +249,20 @@ module free_tunnel_sui::atomic_mint {
         assert!(proposer != DEAD_ADDRESS, EINVALID_PROPOSER);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         storeA.proposedBurn.add(reqId, proposer);
 
-        assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
+        let mut coinMerged = coin::zero<CoinType>(ctx);
+        pay::join_vec(&mut coinMerged, coinList);
+        let coinObject = coin::split(&mut coinMerged, amount, ctx);
+        transfer::public_transfer(coinMerged, ctx.sender());
 
-        let pendingBalanceBox = PendingBalanceBox<CoinType> {
-            id: object::new(ctx),
-            balance: coinObject.into_balance(),
+        if (storeA.coinsPendingBurn.contains(tokenIndex)) {
+            let coinInside = storeA.coinsPendingBurn.borrow_mut(tokenIndex);
+            coin::join(coinInside, coinObject);
+        } else {
+            storeA.coinsPendingBurn.add(tokenIndex, coinObject);
         };
-        transfer::public_share_object(pendingBalanceBox);
         event::emit(TokenBurnProposed{ reqId, proposer });
     }
 
@@ -270,7 +272,6 @@ module free_tunnel_sui::atomic_mint {
         yParityAndS: vector<vector<u8>>,
         executors: vector<vector<u8>>,
         exeIndex: u64,
-        pendingBalanceBox: PendingBalanceBox<CoinType>,
         treasuryCapBox: &mut TreasuryCapBox<CoinType>,
         storeA: &mut AtomicMintStorage,
         storeP: &mut PermissionsStorage,
@@ -289,12 +290,10 @@ module free_tunnel_sui::atomic_mint {
         *storeA.proposedBurn.borrow_mut(reqId) = DEAD_ADDRESS;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
-        let PendingBalanceBox { id, balance } = pendingBalanceBox;
-        object::delete(id);
-        let coinObject = coin::from_balance(balance, ctx);
-        assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
+        let coinInside = storeA.coinsPendingBurn.borrow_mut(tokenIndex);
+        let coinObject = coin::split(coinInside, amount, ctx);
 
         mintable_coin::burnWithTreasuryBox(coinObject, treasuryCapBox);
         event::emit(TokenBurnExecuted{ reqId, proposer });
@@ -302,7 +301,6 @@ module free_tunnel_sui::atomic_mint {
 
     public entry fun cancelBurn<CoinType>(
         reqId: vector<u8>,
-        pendingBalanceBox: PendingBalanceBox<CoinType>,
         storeA: &mut AtomicMintStorage,
         storeR: &ReqHelpersStorage,
         clockObject: &Clock,
@@ -318,12 +316,10 @@ module free_tunnel_sui::atomic_mint {
         storeA.proposedBurn.remove(reqId);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
-        let PendingBalanceBox { id, balance } = pendingBalanceBox;
-        object::delete(id);
-        let coinObject = coin::from_balance(balance, ctx);
-        assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
+        let coinInside = storeA.coinsPendingBurn.borrow_mut(tokenIndex);
+        let coinObject: Coin<CoinType> = coin::split(coinInside, amount, ctx);
 
         transfer::public_transfer(coinObject, proposer);
         event::emit(TokenBurnCancelled{ reqId, proposer });

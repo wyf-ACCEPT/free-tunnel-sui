@@ -1,9 +1,10 @@
 module free_tunnel_sui::atomic_lock {
 
     // =========================== Packages ===========================
+    use sui::bag;
     use sui::event;
     use sui::table;
-    use sui::balance::Balance;
+    use sui::pay;
     use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
     use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage};
@@ -18,10 +19,9 @@ module free_tunnel_sui::atomic_lock {
     const ENOT_LOCK_MINT: u64 = 70;
     const EINVALID_REQ_ID: u64 = 71;
     const EINVALID_PROPOSER: u64 = 72;
-    const EMISMATCH_COIN_AMOUNT: u64 = 73;
-    const EWAIT_UNTIL_EXPIRED: u64 = 74;
-    const ENOT_BURN_UNLOCK: u64 = 75;
-    const EINVALID_RECIPIENT: u64 = 76;
+    const EWAIT_UNTIL_EXPIRED: u64 = 73;
+    const ENOT_BURN_UNLOCK: u64 = 74;
+    const EINVALID_RECIPIENT: u64 = 75;
 
 
     // ============================ Storage ===========================
@@ -30,11 +30,7 @@ module free_tunnel_sui::atomic_lock {
         proposedLock: table::Table<vector<u8>, address>,
         proposedUnlock: table::Table<vector<u8>, address>,
         lockedBalanceOf: table::Table<u8, u64>,
-    }
-
-    public struct PendingBalanceBox<phantom CoinType> has key, store {
-        id: UID,
-        balance: Balance<CoinType>,
+        coinsPendingLock: bag::Bag,
     }
 
     public struct TokenLockProposed has copy, drop {
@@ -83,6 +79,7 @@ module free_tunnel_sui::atomic_lock {
             proposedLock: table::new(ctx),
             proposedUnlock: table::new(ctx),
             lockedBalanceOf: table::new(ctx),
+            coinsPendingLock: bag::new(ctx),
         };
         transfer::public_share_object(atomicLockStorage);
     }
@@ -112,7 +109,7 @@ module free_tunnel_sui::atomic_lock {
 
     public entry fun proposeLock<CoinType>(
         reqId: vector<u8>,
-        coinObject: Coin<CoinType>,
+        coinList: vector<Coin<CoinType>>,
         storeA: &mut AtomicLockStorage,
         storeR: &mut ReqHelpersStorage,
         clockObject: &Clock,
@@ -128,17 +125,20 @@ module free_tunnel_sui::atomic_lock {
         assert!(proposer != DEAD_ADDRESS, EINVALID_PROPOSER);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         storeA.proposedLock.add(reqId, proposer);
 
-        assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
+        let mut coinMerged = coin::zero<CoinType>(ctx);
+        pay::join_vec(&mut coinMerged, coinList);
+        let coinObject = coin::split(&mut coinMerged, amount, ctx);
+        transfer::public_transfer(coinMerged, ctx.sender());
 
-        // No vault here, so just transfer from proposer to this contract
-        let pendingBalanceBox = PendingBalanceBox<CoinType> {
-            id: object::new(ctx),
-            balance: coinObject.into_balance(),
+        if (storeA.coinsPendingLock.contains(tokenIndex)) {
+            let coinInside = storeA.coinsPendingLock.borrow_mut(tokenIndex);
+            coin::join(coinInside, coinObject);
+        } else {
+            storeA.coinsPendingLock.add(tokenIndex, coinObject);
         };
-        transfer::public_share_object(pendingBalanceBox);
         event::emit(TokenLockProposed{ reqId, proposer });
     }
 
@@ -176,7 +176,6 @@ module free_tunnel_sui::atomic_lock {
 
     public entry fun cancelLock<CoinType>(
         reqId: vector<u8>,
-        pendingBalanceBox: PendingBalanceBox<CoinType>,
         storeA: &mut AtomicLockStorage,
         storeR: &mut ReqHelpersStorage,
         clockObject: &Clock,
@@ -192,13 +191,10 @@ module free_tunnel_sui::atomic_lock {
         storeA.proposedLock.remove(reqId);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
-        // No vault here, so just transfer from this contract to proposer
-        let PendingBalanceBox { id, balance } = pendingBalanceBox;
-        object::delete(id);
-        let coinObject = coin::from_balance(balance, ctx);
-        assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
+        let coinInside = storeA.coinsPendingLock.borrow_mut(tokenIndex);
+        let coinObject: Coin<CoinType> = coin::split(coinInside, amount, ctx);
 
         transfer::public_transfer(coinObject, proposer);
         event::emit(TokenLockCancelled{ reqId, proposer });
@@ -234,7 +230,6 @@ module free_tunnel_sui::atomic_lock {
         yParityAndS: vector<vector<u8>>,
         executors: vector<vector<u8>>,
         exeIndex: u64,
-        pendingBalanceBox: PendingBalanceBox<CoinType>,
         storeA: &mut AtomicLockStorage,
         storeP: &mut PermissionsStorage,
         storeR: &mut ReqHelpersStorage,
@@ -252,12 +247,10 @@ module free_tunnel_sui::atomic_lock {
         *storeA.proposedUnlock.borrow_mut(reqId) = DEAD_ADDRESS;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
-        let PendingBalanceBox { id, balance } = pendingBalanceBox;
-        object::delete(id);
-        let coinObject = coin::from_balance(balance, ctx);
-        assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
+        let coinInside = storeA.coinsPendingLock.borrow_mut(tokenIndex);
+        let coinObject: Coin<CoinType> = coin::split(coinInside, amount, ctx);
 
         transfer::public_transfer(coinObject, recipient);
         event::emit(TokenUnlockExecuted{ reqId, recipient });
