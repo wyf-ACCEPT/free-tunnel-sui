@@ -4,6 +4,7 @@ module free_tunnel_sui::permissions {
 
     // =========================== Packages ===========================
     use sui::address;
+    use sui::event;
     use sui::table;
     use sui::clock::{Self, Clock};
     use free_tunnel_sui::utils::{recoverEthAddress, smallU64ToString, smallU64Log10, assertEthAddressList};
@@ -58,6 +59,19 @@ module free_tunnel_sui::permissions {
         }
     }
 
+    public struct AdminTransferred has copy, drop {
+        prevAdmin: address,
+        newAdmin: address,
+    }
+
+    public struct ProposerAdded has copy, drop {
+        proposer: address,
+    }
+
+    public struct ProposerRemoved has copy, drop {
+        proposer: address,
+    }
+
 
     // =========================== Functions ===========================
     public(package) fun assertOnlyAdmin(store: &PermissionsStorage, ctx: &TxContext) {
@@ -70,11 +84,14 @@ module free_tunnel_sui::permissions {
 
     public(package) fun initAdminInternal(admin: address, store: &mut PermissionsStorage) {
         store._admin = admin;
+        event::emit(AdminTransferred { prevAdmin: @0x0, newAdmin: admin });
     }
 
     public entry fun transferAdmin(newAdmin: address, store: &mut PermissionsStorage, ctx: &mut TxContext) {
         assertOnlyAdmin(store, ctx);
+        let prevAdmin = store._admin;
         store._admin = newAdmin;
+        event::emit(AdminTransferred { prevAdmin, newAdmin });
     }
 
     public entry fun addProposer(proposer: address, store: &mut PermissionsStorage, ctx: &mut TxContext) {
@@ -86,6 +103,7 @@ module free_tunnel_sui::permissions {
         assert!(!store._proposerIndex.contains(proposer), EALREADY_PROPOSER);
         store._proposerList.push_back(proposer);
         store._proposerIndex.add(proposer, store._proposerList.length());
+        event::emit(ProposerAdded { proposer });
     }
 
     public entry fun removeProposer(proposer: address, store: &mut PermissionsStorage, ctx: &mut TxContext) {
@@ -100,6 +118,7 @@ module free_tunnel_sui::permissions {
             *store._proposerIndex.borrow_mut(lastProposer) = index;
         };
         store._proposerList.pop_back();
+        event::emit(ProposerRemoved { proposer });
     }
 
     public(package) fun initExecutorsInternal(executors: vector<vector<u8>>, threshold: u64, store: &mut PermissionsStorage) {
@@ -124,6 +143,7 @@ module free_tunnel_sui::permissions {
         store: &mut PermissionsStorage,
     ) {
         assertEthAddressList(newExecutors);
+        assert!(threshold > 0, ETHRESHOLD_MUST_BE_GREATER_THAN_ZERO);
         assert!(
             activeSince > clock::timestamp_ms(clockObject) / 1000 + 36 * 3600,  // 36 hours
             EACTIVE_SINCE_SHOULD_AFTER_36H,

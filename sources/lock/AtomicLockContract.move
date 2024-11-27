@@ -1,9 +1,10 @@
 module free_tunnel_sui::atomic_lock {
 
     // =========================== Packages ===========================
+    use sui::event;
+    use sui::table;
     use sui::balance::Balance;
     use sui::coin::{Self, Coin};
-    use sui::table;
     use sui::clock::{Self, Clock};
     use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage};
     use free_tunnel_sui::permissions::{Self, PermissionsStorage};
@@ -34,6 +35,36 @@ module free_tunnel_sui::atomic_lock {
     public struct PendingBalanceBox<phantom CoinType> has key, store {
         id: UID,
         balance: Balance<CoinType>,
+    }
+
+    public struct TokenLockProposed has copy, drop {
+        reqId: vector<u8>,
+        proposer: address,
+    }
+
+    public struct TokenLockExecuted has copy, drop {
+        reqId: vector<u8>,
+        proposer: address,
+    }
+
+    public struct TokenLockCancelled has copy, drop {
+        reqId: vector<u8>,
+        proposer: address,
+    }
+
+    public struct TokenUnlockProposed has copy, drop {
+        reqId: vector<u8>,
+        recipient: address,
+    }
+
+    public struct TokenUnlockExecuted has copy, drop {
+        reqId: vector<u8>,
+        recipient: address,
+    }
+
+    public struct TokenUnlockCancelled has copy, drop {
+        reqId: vector<u8>,
+        recipient: address,
     }
 
     /**
@@ -109,6 +140,7 @@ module free_tunnel_sui::atomic_lock {
             balance: coinObject.into_balance(),
         };
         transfer::public_share_object(pendingBalanceBox);
+        event::emit(TokenLockProposed{ reqId, proposer });
     }
 
     public entry fun executeLock(
@@ -140,6 +172,7 @@ module free_tunnel_sui::atomic_lock {
         } else {
             storeA.lockedBalanceOf.add(tokenIndex, amount);
         };
+        event::emit(TokenLockExecuted{ reqId, proposer });
     }
 
     public entry fun cancelLock<CoinType>(
@@ -170,6 +203,7 @@ module free_tunnel_sui::atomic_lock {
         assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
 
         transfer::public_transfer(coinObject, proposer);
+        event::emit(TokenLockCancelled{ reqId, proposer });
     }
 
     public entry fun proposeUnlock(
@@ -193,6 +227,7 @@ module free_tunnel_sui::atomic_lock {
         let originalAmount = storeA.lockedBalanceOf[tokenIndex];
         *storeA.lockedBalanceOf.borrow_mut(tokenIndex) = originalAmount - amount;
         storeA.proposedUnlock.add(reqId, recipient);
+        event::emit(TokenUnlockProposed{ reqId, recipient });
     }
 
     public entry fun executeUnlock<CoinType>(
@@ -228,6 +263,7 @@ module free_tunnel_sui::atomic_lock {
         assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
 
         transfer::public_transfer(coinObject, recipient);
+        event::emit(TokenUnlockExecuted{ reqId, recipient });
     }
 
     public entry fun cancelUnlock(
@@ -249,6 +285,7 @@ module free_tunnel_sui::atomic_lock {
         let tokenIndex = req_helpers::tokenIndexFromCheck(reqId, storeR);
         let originalAmount = storeA.lockedBalanceOf[tokenIndex];
         *storeA.lockedBalanceOf.borrow_mut(tokenIndex) = originalAmount + amount;
+        event::emit(TokenUnlockCancelled{ reqId, recipient });
     }
 
 }

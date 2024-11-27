@@ -1,9 +1,10 @@
 module free_tunnel_sui::atomic_mint {
 
     // =========================== Packages ===========================
+    use sui::event;
+    use sui::table;
     use sui::balance::Balance;
     use sui::coin::{Self, Coin};
-    use sui::table;
     use sui::clock::{Self, Clock};
     use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage};
     use free_tunnel_sui::permissions::{Self, PermissionsStorage};
@@ -37,6 +38,37 @@ module free_tunnel_sui::atomic_mint {
         id: UID,
         balance: Balance<CoinType>,
     }
+
+    public struct TokenMintProposed has copy, drop {
+        reqId: vector<u8>,
+        recipient: address,
+    }
+
+    public struct TokenMintExecuted has copy, drop {
+        reqId: vector<u8>,
+        recipient: address,
+    }
+
+    public struct TokenMintCancelled has copy, drop {
+        reqId: vector<u8>,
+        recipient: address,
+    }
+
+    public struct TokenBurnProposed has copy, drop {
+        reqId: vector<u8>,
+        proposer: address,
+    }
+
+    public struct TokenBurnExecuted has copy, drop {
+        reqId: vector<u8>,
+        proposer: address,
+    }
+
+    public struct TokenBurnCancelled has copy, drop {
+        reqId: vector<u8>,
+        proposer: address,
+    }
+
 
     /**
      * @dev Cannot pass more parameters here, so you need to transfer admin, update proposers
@@ -124,6 +156,8 @@ module free_tunnel_sui::atomic_mint {
         req_helpers::amountFrom(reqId, storeR);
         req_helpers::tokenIndexFromCheck(reqId, storeR);
         storeA.proposedMint.add(reqId, recipient);
+
+        event::emit(TokenMintProposed{ reqId, recipient });
     }
 
     public entry fun executeMint<CoinType>(
@@ -154,6 +188,7 @@ module free_tunnel_sui::atomic_mint {
         assert!(req_helpers::tokenIndexMatchCoinType<CoinType>(tokenIndex, storeR), ETOKEN_INDEX_MISMATCH);
 
         mintable_coin::mintWithTreasuryBox(amount, recipient, treasuryCapBox, ctx);
+        event::emit(TokenMintExecuted{ reqId, recipient });
     }
 
     public entry fun cancelMint(
@@ -169,6 +204,7 @@ module free_tunnel_sui::atomic_mint {
         );
 
         storeA.proposedMint.remove(reqId);
+        event::emit(TokenMintCancelled{ reqId, recipient });
     }
 
 
@@ -228,6 +264,7 @@ module free_tunnel_sui::atomic_mint {
             balance: coinObject.into_balance(),
         };
         transfer::public_share_object(pendingBalanceBox);
+        event::emit(TokenBurnProposed{ reqId, proposer });
     }
 
     public entry fun executeBurn<CoinType>(
@@ -264,6 +301,7 @@ module free_tunnel_sui::atomic_mint {
         assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
 
         mintable_coin::burnWithTreasuryBox(coinObject, treasuryCapBox);
+        event::emit(TokenBurnExecuted{ reqId, proposer });
     }
 
     public entry fun cancelBurn<CoinType>(
@@ -293,6 +331,7 @@ module free_tunnel_sui::atomic_mint {
         assert!(coinObject.value() == amount, EMISMATCH_COIN_AMOUNT);
 
         transfer::public_transfer(coinObject, proposer);
+        event::emit(TokenBurnCancelled{ reqId, proposer });
     }
 
 }

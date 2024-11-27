@@ -1,11 +1,12 @@
 module free_tunnel_sui::req_helpers {
 
     // =========================== Packages ===========================
-    use std::type_name::{Self, TypeName};
-    use sui::table;
-    use sui::hash;
     use sui::hex;
+    use sui::hash;
+    use sui::event;
+    use sui::table;
     use sui::clock::{Self, Clock};
+    use std::type_name::{Self, TypeName};
     use free_tunnel_sui::utils::smallU64ToString;
 
 
@@ -42,12 +43,23 @@ module free_tunnel_sui::req_helpers {
         }
     }
 
+    public struct TokenAdded has copy, drop {
+        tokenIndex: u8,
+        tokenType: TypeName,
+    }
+
+    public struct TokenRemoved has copy, drop {
+        tokenIndex: u8,
+        tokenType: TypeName,
+    }
+
 
     // =========================== Functions ===========================
     public(package) fun addTokenInternal<CoinType>(tokenIndex: u8, decimals: u8, store: &mut ReqHelpersStorage) {
         assert!(!store.tokens.contains(tokenIndex), ETOKEN_INDEX_OCCUPIED);
         assert!(tokenIndex > 0, ETOKEN_INDEX_CANNOT_BE_ZERO);
-        store.tokens.add(tokenIndex, type_name::get<CoinType>());
+        let tokenType = type_name::get<CoinType>();
+        store.tokens.add(tokenIndex, tokenType);
 
         if (decimals == 6) {
             assert!(tokenIndex < 64, ETOKEN_INDEX_WRONG);
@@ -57,15 +69,18 @@ module free_tunnel_sui::req_helpers {
             assert!(tokenIndex >= 192, ETOKEN_INDEX_WRONG);
             store.tokenDecimals.add(tokenIndex, decimals);
         };
+
+        event::emit(TokenAdded { tokenIndex, tokenType });
     }
 
     public(package) fun removeTokenInternal(tokenIndex: u8, store: &mut ReqHelpersStorage) {
         assert!(store.tokens.contains(tokenIndex), ETOKEN_INDEX_NONEXISTENT);
         assert!(tokenIndex > 0, ETOKEN_INDEX_CANNOT_BE_ZERO);
-        store.tokens.remove(tokenIndex);
+        let tokenType = store.tokens.remove(tokenIndex);
         if (tokenIndex >= 192) {
             store.tokenDecimals.remove(tokenIndex);
         };
+        event::emit(TokenRemoved { tokenIndex, tokenType });
     }
 
     /// `reqId` in format of `version:uint8|createdTime:uint40|action:uint8|tokenIndex:uint8|amount:uint64|from:uint8|to:uint8|(TBD):uint112`
