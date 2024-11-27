@@ -32,6 +32,7 @@ module free_tunnel_sui::utils {
     public fun smallU64Log10(mut value: u64): u64 {
         assert!(value < 10000, ELOG10_VALUE_TOO_LARGE);
         let mut result = 0;
+        value = value / 10;
         while (value != 0) {
             value = value / 10;
             result = result + 1;
@@ -81,15 +82,15 @@ module free_tunnel_sui::utils {
     #[test]
     fun testSmallU64Log10() {
         assert!(smallU64Log10(0) == 0);
-        assert!(smallU64Log10(1) == 1);
-        assert!(smallU64Log10(3) == 1);
-        assert!(smallU64Log10(9) == 1);
-        assert!(smallU64Log10(10) == 2);
-        assert!(smallU64Log10(35) == 2);
-        assert!(smallU64Log10(100) == 3);
-        assert!(smallU64Log10(1000) == 4);
-        assert!(smallU64Log10(3162) == 4);
-        assert!(smallU64Log10(9999) == 4);
+        assert!(smallU64Log10(1) == 0);
+        assert!(smallU64Log10(3) == 0);
+        assert!(smallU64Log10(9) == 0);
+        assert!(smallU64Log10(10) == 1);
+        assert!(smallU64Log10(35) == 1);
+        assert!(smallU64Log10(100) == 2);
+        assert!(smallU64Log10(1000) == 3);
+        assert!(smallU64Log10(3162) == 3);
+        assert!(smallU64Log10(9999) == 3);
     }
 
     #[test]

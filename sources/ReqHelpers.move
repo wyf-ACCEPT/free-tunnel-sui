@@ -198,7 +198,7 @@ module free_tunnel_sui::req_helpers {
     #[test]
     fun testDecodingReqid() {
         // `version:uint8|createdTime:uint40|action:uint8|tokenIndex:uint8|amount:uint64|from:uint8|to:uint8|(TBD):uint112`
-        let reqId = x"112233445566778899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let reqId = x"112233445566778899aabbccddeeff00a0a0ffffffffffffffffffffffffffff";
         assert!(versionFrom(reqId) == 0x11);
         assert!(createdTimeFrom(reqId) == 0x2233445566);
         assert!(actionFrom(reqId) == 0x77);
@@ -212,7 +212,7 @@ module free_tunnel_sui::req_helpers {
     fun testDigestFromReqSigningMessage1() {
         // action 1: lock-mint
         let reqId = x"112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = x"b2cca04d052677f9c855ed80cf6a2fff36621f9b725d2495d785aee31a702cbe";
+        let expected = x"c22547f03fe03fc9d4239d8b90a224206cec4e8bc6ab011dd1c602bb98633665";
         assert!(digestFromReqSigningMessage(reqId) == expected);
     }
 
@@ -220,7 +220,7 @@ module free_tunnel_sui::req_helpers {
     fun testDigestFromReqSigningMessage2() {
         // action 2: burn-unlock
         let reqId = x"112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = x"1512678d7774afc7b0506d593d4a4ccb71187be5f67644b08fd2e5a996341568";
+        let expected = x"efde4f52d99f7e2c0307635f3c568ce4dffd8acacf3f95db7da1a4c9d26db803";
         assert!(digestFromReqSigningMessage(reqId) == expected);
     }
 
@@ -228,7 +228,7 @@ module free_tunnel_sui::req_helpers {
     fun testDigestFromReqSigningMessage3() {
         // action 3: burn-mint
         let reqId = x"112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = x"63f63440c8969acb7576b758f1a00fe5ee916e365ac0a373d77291bcb02e59eb";
+        let expected = x"cd5fc5b7e38212f2e405d98251f1f29ce43cb2d1dd368d83bd8e6bc8f65f9b17";
         assert!(digestFromReqSigningMessage(reqId) == expected);
     }
 
