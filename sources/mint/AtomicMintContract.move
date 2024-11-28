@@ -5,10 +5,11 @@ module free_tunnel_sui::atomic_mint {
     use sui::event;
     use sui::table;
     use sui::pay;
-    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
     use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage};
     use free_tunnel_sui::permissions::{Self, PermissionsStorage};
+    use free_tunnel_sui::mintable_coin::{Self, SubTreasuryCap, TreasuryCapManager};
 
 
     // =========================== Constants ==========================
@@ -23,9 +24,8 @@ module free_tunnel_sui::atomic_mint {
     const EWAIT_UNTIL_EXPIRED: u64 = 54;
     const EINVALID_PROPOSER: u64 = 55;
     const ENOT_BURN_UNLOCK: u64 = 56;
-    const ENOT_SUPER_ADMIN: u64 = 57;
-    const ENOT_MINTER: u64 = 58;
-    const ESTILL_HAVE_MINTERS: u64 = 59;
+    const EALREADY_HAVE_SUBCAP: u64 = 57;
+    const ENO_SUBCAP: u64 = 58;
 
 
     // ============================ Storage ===========================
@@ -33,14 +33,8 @@ module free_tunnel_sui::atomic_mint {
         id: UID,
         proposedMint: table::Table<vector<u8>, address>,
         proposedBurn: table::Table<vector<u8>, address>,
-        coinsPendingBurn: bag::Bag,
-    }
-
-    public struct TreasuryCapManager<phantom CoinType> has key, store {
-        id: UID,
-        superAdmin: address,
-        isMinter: table::Table<address, bool>,
-        treasuryCap: TreasuryCap<CoinType>,
+        coinsPendingBurn: bag::Bag,     // tokenIndex -> Pending Coin Object
+        subTreasuryCaps: bag::Bag,      // tokenIndex -> SubTreasuryCap
     }
 
     public struct TokenMintProposed has copy, drop {
@@ -90,6 +84,7 @@ module free_tunnel_sui::atomic_mint {
             proposedMint: table::new(ctx),
             proposedBurn: table::new(ctx),
             coinsPendingBurn: bag::new(ctx),
+            subTreasuryCaps: bag::new(ctx),
         };
         transfer::public_share_object(atomicMintStorage);
     }
@@ -189,9 +184,12 @@ module free_tunnel_sui::atomic_mint {
         *storeA.proposedMint.borrow_mut(reqId) = DEAD_ADDRESS;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
-        req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
+        let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
-        mintWithTreasuryCapManager<CoinType>(amount, recipient, treasuryCapManager, ctx);
+        mintable_coin::mint<CoinType>(
+            amount, recipient, storeA.subTreasuryCaps.borrow_mut(tokenIndex),
+            treasuryCapManager, ctx
+        );
         event::emit(TokenMintExecuted{ reqId, recipient });
     }
 
@@ -304,7 +302,10 @@ module free_tunnel_sui::atomic_mint {
         let coinInside = storeA.coinsPendingBurn.borrow_mut(tokenIndex);
         let coinObject = coin::split(coinInside, amount, ctx);
 
-        burnWithTreasuryCapManager<CoinType>(coinObject, treasuryCapManager);
+        mintable_coin::burn<CoinType>(
+            amount, vector::singleton(coinObject),
+            storeA.subTreasuryCaps.borrow_mut(tokenIndex), treasuryCapManager, ctx
+        );
         event::emit(TokenBurnExecuted{ reqId, proposer });
     }
 
@@ -334,96 +335,28 @@ module free_tunnel_sui::atomic_mint {
         event::emit(TokenBurnCancelled{ reqId, proposer });
     }
 
-
-    // ===================== Treasury Cap Management =====================
-    public entry fun setUpTreasuryCapManager<CoinType>(
-        superAdmin: address,
-        treasuryCap: TreasuryCap<CoinType>,
+    public entry fun depositSubTreasuryCap<CoinType>(
+        tokenIndex: u8,
+        subTreasuryCap: SubTreasuryCap<CoinType>,
+        storeA: &mut AtomicMintStorage,
         storeP: &mut PermissionsStorage,
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyAdmin(storeP, ctx);
-        let treasuryCapManager = TreasuryCapManager<CoinType> {
-            id: object::new(ctx),
-            superAdmin,
-            isMinter: table::new(ctx),
-            treasuryCap,
-        };
-        transfer::public_share_object(treasuryCapManager);
+        assert!(!storeA.subTreasuryCaps.contains(tokenIndex), EALREADY_HAVE_SUBCAP);
+        storeA.subTreasuryCaps.add(tokenIndex, subTreasuryCap);  // No checking for tokenIndex <> CoinType
     }
 
-    public entry fun destroyTreasuryCapManager<CoinType>(
-        treasuryCapManager: TreasuryCapManager<CoinType>,
+    public entry fun withdrawSubTreasuryCap<CoinType>(
+        tokenIndex: u8,
+        storeA: &mut AtomicMintStorage,
+        storeP: &mut PermissionsStorage,
         ctx: &mut TxContext,
     ) {
-        assert!(ctx.sender() == treasuryCapManager.superAdmin, ENOT_SUPER_ADMIN);
-        let TreasuryCapManager<CoinType> {
-            id, superAdmin: _superAdmin, isMinter, treasuryCap,
-        } = treasuryCapManager;
-
-        object::delete(id);
-        assert!(table::is_empty(&isMinter), ESTILL_HAVE_MINTERS);
-        table::destroy_empty(isMinter);
-        
-        transfer::public_transfer(treasuryCap, ctx.sender());
-    }
-
-    public entry fun addMinter<CoinType>(
-        minter: address,
-        treasuryCapManager: &mut TreasuryCapManager<CoinType>,
-        ctx: &mut TxContext,
-    ) {
-        assert!(ctx.sender() == treasuryCapManager.superAdmin, ENOT_SUPER_ADMIN);
-        treasuryCapManager.isMinter.add(minter, true);
-    }
-
-    public entry fun removeMinter<CoinType>(
-        minter: address,
-        treasuryCapManager: &mut TreasuryCapManager<CoinType>,
-        ctx: &mut TxContext,
-    ) {
-        assert!(ctx.sender() == treasuryCapManager.superAdmin, ENOT_SUPER_ADMIN);
-        treasuryCapManager.isMinter.remove(minter);
-    }
-
-    public entry fun mint<CoinType>(
-        amount: u64,
-        recipient: address,
-        treasuryCapManager: &mut TreasuryCapManager<CoinType>,
-        ctx: &mut TxContext,
-    ) {
-        assert!(treasuryCapManager.isMinter[ctx.sender()], ENOT_MINTER);
-        mintWithTreasuryCapManager<CoinType>(amount, recipient, treasuryCapManager, ctx);
-    }
-
-    public entry fun burn<CoinType>(
-        amount: u64,
-        coinList: vector<Coin<CoinType>>,
-        treasuryCapManager: &mut TreasuryCapManager<CoinType>,
-        ctx: &mut TxContext,
-    ) {
-        assert!(ctx.sender() == treasuryCapManager.superAdmin, ENOT_SUPER_ADMIN);
-        let mut coinMerged = coin::zero<CoinType>(ctx);
-        pay::join_vec(&mut coinMerged, coinList);
-        let coinObject = coin::split(&mut coinMerged, amount, ctx);
-        transfer::public_transfer(coinMerged, ctx.sender());
-        burnWithTreasuryCapManager<CoinType>(coinObject, treasuryCapManager);
-    }
-
-    fun mintWithTreasuryCapManager<CoinType>(
-        amount: u64,
-        recipient: address,
-        treasuryCapManager: &mut TreasuryCapManager<CoinType>,
-        ctx: &mut TxContext,
-    ) {
-        coin::mint_and_transfer(&mut treasuryCapManager.treasuryCap, amount, recipient, ctx);
-    }
-
-    fun burnWithTreasuryCapManager<CoinType>(
-        coinObject: Coin<CoinType>,
-        treasuryCapManager: &mut TreasuryCapManager<CoinType>,
-    ) {
-        coin::burn(&mut treasuryCapManager.treasuryCap, coinObject);
+        permissions::assertOnlyAdmin(storeP, ctx);
+        assert!(storeA.subTreasuryCaps.contains(tokenIndex), ENO_SUBCAP);
+        let subTreasuryCap: SubTreasuryCap<CoinType> = storeA.subTreasuryCaps.remove(tokenIndex);
+        transfer::public_transfer(subTreasuryCap, ctx.sender());
     }
 
 }
