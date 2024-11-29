@@ -184,9 +184,9 @@ module free_tunnel_sui::atomic_lock {
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
         let coinInside = storeA.lockedCoins.borrow_mut(tokenIndex);
-        let coinObject: Coin<CoinType> = coin::split(coinInside, amount, ctx);
+        let coinCancelled: Coin<CoinType> = coin::split(coinInside, amount, ctx);
 
-        transfer::public_transfer(coinObject, proposer);
+        transfer::public_transfer(coinCancelled, proposer);
         event::emit(TokenLockCancelled{ reqId, proposer });
     }
 
@@ -240,9 +240,9 @@ module free_tunnel_sui::atomic_lock {
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
         let coinInside = storeA.lockedCoins.borrow_mut(tokenIndex);
-        let coinObject: Coin<CoinType> = coin::split(coinInside, amount, ctx);
+        let coinUnlocked: Coin<CoinType> = coin::split(coinInside, amount, ctx);
 
-        transfer::public_transfer(coinObject, recipient);
+        transfer::public_transfer(coinUnlocked, recipient);
         event::emit(TokenUnlockExecuted{ reqId, recipient });
     }
 

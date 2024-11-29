@@ -112,12 +112,16 @@ module free_tunnel_sui::req_helpers {
         reqId[7]
     }
 
-    public(package) fun tokenIndexFrom<CoinType>(reqId: vector<u8>, store: &ReqHelpersStorage): u8 {
-        let tokenIndex = decodeTokenIndex(reqId);
-        assert!(store.tokens.contains(tokenIndex), ETOKEN_INDEX_NONEXISTENT);
+    public(package) fun checkTokenType<CoinType>(tokenIndex: u8, store: &ReqHelpersStorage) {
         let tokenTypeExpected = store.tokens[tokenIndex];
         let tokenTypeActual = type_name::get<CoinType>();
         assert!(tokenTypeExpected == tokenTypeActual, ETOKEN_TYPE_MISMATCH);
+    }
+
+    public(package) fun tokenIndexFrom<CoinType>(reqId: vector<u8>, store: &ReqHelpersStorage): u8 {
+        let tokenIndex = decodeTokenIndex(reqId);
+        assert!(store.tokens.contains(tokenIndex), ETOKEN_INDEX_NONEXISTENT);
+        checkTokenType<CoinType>(tokenIndex, store);
         tokenIndex
     }
 

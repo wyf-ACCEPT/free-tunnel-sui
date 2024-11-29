@@ -24,8 +24,8 @@ module free_tunnel_sui::atomic_mint {
     const EWAIT_UNTIL_EXPIRED: u64 = 54;
     const EINVALID_PROPOSER: u64 = 55;
     const ENOT_BURN_UNLOCK: u64 = 56;
-    const EALREADY_HAVE_SUBCAP: u64 = 57;
-    const ENO_SUBCAP: u64 = 58;
+    const EALREADY_HAVE_MINTERCAP: u64 = 57;
+    const ENO_MINTERCAP: u64 = 58;
 
 
     // ============================ Storage ===========================
@@ -94,22 +94,28 @@ module free_tunnel_sui::atomic_mint {
     public entry fun addToken<CoinType>(
         tokenIndex: u8,
         decimals: u8,
-        storeP: &mut PermissionsStorage,
+        minterCap: MinterCap<CoinType>,
+        storeA: &mut AtomicMintStorage,
         storeR: &mut ReqHelpersStorage,
-        ctx: &mut TxContext,
     ) {
-        permissions::assertOnlyAdmin(storeP, ctx);
+        req_helpers::checkTokenType<CoinType>(tokenIndex, storeR);
         req_helpers::addTokenInternal<CoinType>(tokenIndex, decimals, storeR);
+        assert!(!storeA.minterCaps.contains(tokenIndex), EALREADY_HAVE_MINTERCAP);
+        storeA.minterCaps.add(tokenIndex, minterCap);
     }
 
-    public entry fun removeToken(
+    public entry fun removeToken<CoinType>(
         tokenIndex: u8,
+        storeA: &mut AtomicMintStorage,
         storeP: &mut PermissionsStorage,
         storeR: &mut ReqHelpersStorage,
         ctx: &mut TxContext,
     ) {
         permissions::assertOnlyAdmin(storeP, ctx);
         req_helpers::removeTokenInternal(tokenIndex, storeR);
+        assert!(storeA.minterCaps.contains(tokenIndex), ENO_MINTERCAP);
+        let minterCap: MinterCap<CoinType> = storeA.minterCaps.remove(tokenIndex);
+        transfer::public_freeze_object(minterCap);      // Burn the MinterCap object
     }
 
     public entry fun proposeMint<CoinType>(
@@ -289,10 +295,10 @@ module free_tunnel_sui::atomic_mint {
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
         let coinInside = storeA.burningCoins.borrow_mut(tokenIndex);
-        let coinObject = coin::split(coinInside, amount, ctx);
+        let coinBurned = coin::split(coinInside, amount, ctx);
 
         minter_manager::burn<CoinType>(
-            amount, vector::singleton(coinObject),
+            amount, vector::singleton(coinBurned),
             storeA.minterCaps.borrow_mut(tokenIndex), treasuryCapManager, ctx
         );
         event::emit(TokenBurnExecuted{ reqId, proposer });
@@ -318,34 +324,10 @@ module free_tunnel_sui::atomic_mint {
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
         let coinInside = storeA.burningCoins.borrow_mut(tokenIndex);
-        let coinObject: Coin<CoinType> = coin::split(coinInside, amount, ctx);
+        let coinCancelled: Coin<CoinType> = coin::split(coinInside, amount, ctx);
 
-        transfer::public_transfer(coinObject, proposer);
+        transfer::public_transfer(coinCancelled, proposer);
         event::emit(TokenBurnCancelled{ reqId, proposer });
-    }
-
-    public entry fun depositMinterCap<CoinType>(
-        tokenIndex: u8,
-        minterCap: MinterCap<CoinType>,
-        storeA: &mut AtomicMintStorage,
-        storeP: &mut PermissionsStorage,
-        ctx: &mut TxContext,
-    ) {
-        permissions::assertOnlyAdmin(storeP, ctx);
-        assert!(!storeA.minterCaps.contains(tokenIndex), EALREADY_HAVE_SUBCAP);
-        storeA.minterCaps.add(tokenIndex, minterCap);  // No checking for tokenIndex <> CoinType
-    }
-
-    public entry fun withdrawMinterCap<CoinType>(
-        tokenIndex: u8,
-        storeA: &mut AtomicMintStorage,
-        storeP: &mut PermissionsStorage,
-        ctx: &mut TxContext,
-    ) {
-        permissions::assertOnlyAdmin(storeP, ctx);
-        assert!(storeA.minterCaps.contains(tokenIndex), ENO_SUBCAP);
-        let minterCap: MinterCap<CoinType> = storeA.minterCaps.remove(tokenIndex);
-        transfer::public_transfer(minterCap, ctx.sender());
     }
 
 }
