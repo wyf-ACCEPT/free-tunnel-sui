@@ -124,7 +124,7 @@ module free_tunnel_sui::atomic_mint {
         permissions::assertOnlyProposer(storeP, ctx);
         req_helpers::assertToChainOnly(reqId);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 1, ENOT_LOCK_MINT);
-        proposeMintInternal<CoinType>(reqId, recipient, storeA, storeR, clockObject);
+        proposeMintPrivate<CoinType>(reqId, recipient, storeA, storeR, clockObject);
     }
 
     public entry fun proposeMintFromBurn<CoinType>(
@@ -139,10 +139,10 @@ module free_tunnel_sui::atomic_mint {
         permissions::assertOnlyProposer(storeP, ctx);
         req_helpers::assertToChainOnly(reqId);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 3, ENOT_BURN_MINT);
-        proposeMintInternal<CoinType>(reqId, recipient, storeA, storeR, clockObject);
+        proposeMintPrivate<CoinType>(reqId, recipient, storeA, storeR, clockObject);
     }
 
-    fun proposeMintInternal<CoinType>(
+    fun proposeMintPrivate<CoinType>(
         reqId: vector<u8>,
         recipient: address,
         storeA: &mut AtomicMintStorage,
@@ -220,7 +220,7 @@ module free_tunnel_sui::atomic_mint {
     ) {
         req_helpers::assertToChainOnly(reqId);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 2, ENOT_BURN_UNLOCK);
-        proposeBurnInternal<CoinType>(
+        proposeBurnPrivate<CoinType>(
             reqId, coinList, storeA, storeR, clockObject, ctx,
         );
     }
@@ -235,12 +235,12 @@ module free_tunnel_sui::atomic_mint {
     ) {
         req_helpers::assertFromChainOnly(reqId);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 3, ENOT_BURN_MINT);
-        proposeBurnInternal<CoinType>(
+        proposeBurnPrivate<CoinType>(
             reqId, coinList, storeA, storeR, clockObject, ctx,
         );
     }
 
-    fun proposeBurnInternal<CoinType>(
+    fun proposeBurnPrivate<CoinType>(
         reqId: vector<u8>,
         coinList: vector<Coin<CoinType>>,
         storeA: &mut AtomicMintStorage,

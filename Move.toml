@@ -8,7 +8,7 @@ mint = { local = "../solv_mint_manager" }
 
 [addresses]
 free_tunnel_sui = "0x0"
-mint = "0x7bb5cce484aa15f18fa760a2dd6054950a6f5b019fc257c4ceb0878d505b16d0"
+mint = "0x0"
 
 [dev-dependencies]
 
