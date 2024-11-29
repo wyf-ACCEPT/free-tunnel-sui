@@ -2,10 +2,11 @@
 
 [move]
 version = 3
-manifest_digest = "C0A387CE72D39D1E55491476B8614D6B42FB4E229DC0A59D07AFD8C2AF2E7169"
-deps_digest = "F8BBB0CCB2491CA29A3DF03D6F92277A4F3574266507ACD77214D37ECA3F3082"
+manifest_digest = "1DBC4B8E6EE8FCA05FC7EAFE1209C637A535348B883FC3E7271F83F2B76FDD8A"
+deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { id = "Sui", name = "Sui" },
+  { id = "mint", name = "mint" },
 ]
 
 [[move.package]]
@@ -20,6 +21,14 @@ dependencies = [
   { id = "MoveStdlib", name = "MoveStdlib" },
 ]
 
+[[move.package]]
+id = "mint"
+source = { local = "../solv_mint_manager" }
+
+dependencies = [
+  { id = "Sui", name = "Sui" },
+]
+
 [move.toolchain-version]
 compiler-version = "1.38.0"
 edition = "2024.beta"
@@ -29,6 +38,6 @@ flavor = "sui"
 
 [env.testnet]
 chain-id = "4c78adac"
-original-published-id = "0xd85ca3cc62cd46a8ddad4608672463994466c580c3cbfea3d9634e3232b5a71e"
-latest-published-id = "0xd85ca3cc62cd46a8ddad4608672463994466c580c3cbfea3d9634e3232b5a71e"
+original-published-id = "0x698d200c4a99a242a72caf1a7b39a71823c6edfcd57f0700849898fdace22c7c"
+latest-published-id = "0x698d200c4a99a242a72caf1a7b39a71823c6edfcd57f0700849898fdace22c7c"
 published-version = "1"
