@@ -1,4 +1,4 @@
-module project_name::minter_manager {
+module mint::minter_manager {
 
     use sui::table;
     use sui::pay;
