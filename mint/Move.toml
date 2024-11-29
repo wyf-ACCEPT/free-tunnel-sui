@@ -6,7 +6,7 @@ edition = "2024.beta"
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
 
 [addresses]
-mint = "0xde9fdacebb9dc6767ad412ff919c2c66a9d3d9a930cad3ccb58fb11f28d0180d"
+mint = "0x0"
 
 [dev-dependencies]
 
