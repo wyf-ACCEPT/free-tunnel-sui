@@ -98,7 +98,6 @@ module free_tunnel_sui::atomic_mint {
         storeA: &mut AtomicMintStorage,
         storeR: &mut ReqHelpersStorage,
     ) {
-        req_helpers::checkTokenType<CoinType>(tokenIndex, storeR);
         req_helpers::addTokenInternal<CoinType>(tokenIndex, decimals, storeR);
         assert!(!storeA.minterCaps.contains(tokenIndex), EALREADY_HAVE_MINTERCAP);
         storeA.minterCaps.add(tokenIndex, minterCap);
