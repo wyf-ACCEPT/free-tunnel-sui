@@ -13,7 +13,7 @@ module project_name::minter_manager {
     const EMINTER_REVOKED: u64 = 3;
 
 
-    public struct MINTABLE_COIN has drop {}
+    public struct MINTER_MANAGER has drop {}
 
     public struct TreasuryCapManager<phantom CoinType> has key, store {
         id: UID,
@@ -28,7 +28,7 @@ module project_name::minter_manager {
     }
 
 
-    fun init(witness: MINTABLE_COIN, ctx: &mut TxContext) {
+    fun init(witness: MINTER_MANAGER, ctx: &mut TxContext) {
         let (treasuryCap, metadata) = coin::create_currency(
             witness, DECIMALS, SYMBOL, NAME, b"", option::none(), ctx,
         );
