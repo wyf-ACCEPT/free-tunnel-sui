@@ -1,7 +1,10 @@
 module free_tunnel_sui::utils {
 
     use sui::hash;
+    use sui::bag;
+    use sui::pay;
     use sui::ecdsa_k1;
+    use sui::coin::{Self, Coin};
 
     const ETOSTRING_VALUE_TOO_LARGE: u64 = 100;
     const ELOG10_VALUE_TOO_LARGE: u64 = 101;
@@ -103,6 +106,27 @@ module free_tunnel_sui::utils {
 
     public(package) fun BRIDGE_CHANNEL(): vector<u8> {
         b"SolvBTC Bridge"
+    }
+
+    #[allow(lint(self_transfer))]
+    public(package) fun joinCoins<CoinType>(
+        coinList: vector<Coin<CoinType>>,
+        amount: u64,
+        coinsBag: &mut bag::Bag,
+        tokenIndex: u8,
+        ctx: &mut TxContext,
+    ) {
+        let mut mergedCoins = coin::zero<CoinType>(ctx);
+        pay::join_vec(&mut mergedCoins, coinList);
+        let coinsToStore = coin::split(&mut mergedCoins, amount, ctx);
+        transfer::public_transfer(mergedCoins, ctx.sender());   // refund
+
+        if (coinsBag.contains(tokenIndex)) {
+            let currentCoins = coinsBag.borrow_mut(tokenIndex);
+            coin::join(currentCoins, coinsToStore);
+        } else {
+            coinsBag.add(tokenIndex, coinsToStore);
+        };
     }
 
     #[test]

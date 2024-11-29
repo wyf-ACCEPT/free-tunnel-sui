@@ -4,15 +4,15 @@ module free_tunnel_sui::atomic_lock {
     use sui::bag;
     use sui::event;
     use sui::table;
-    use sui::pay;
     use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
+    use free_tunnel_sui::utils;
     use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage};
     use free_tunnel_sui::permissions::{Self, PermissionsStorage};
 
 
     // =========================== Constants ==========================
-    const DEAD_ADDRESS: address = @0xdead;
+    const EXECUTED_PLACEHOLDER: address = @0xed;
     const EXPIRE_PERIOD: u64 = 259200;          // 72 hours
     const EXPIRE_EXTRA_PERIOD: u64 = 345600;    // 96 hours
 
@@ -30,7 +30,7 @@ module free_tunnel_sui::atomic_lock {
         proposedLock: table::Table<vector<u8>, address>,
         proposedUnlock: table::Table<vector<u8>, address>,
         lockedBalanceOf: table::Table<u8, u64>,
-        coinsPendingLock: bag::Bag,
+        lockedCoins: bag::Bag,
     }
 
     public struct TokenLockProposed has copy, drop {
@@ -79,7 +79,7 @@ module free_tunnel_sui::atomic_lock {
             proposedLock: table::new(ctx),
             proposedUnlock: table::new(ctx),
             lockedBalanceOf: table::new(ctx),
-            coinsPendingLock: bag::new(ctx),
+            lockedCoins: bag::new(ctx),
         };
         transfer::public_share_object(atomicLockStorage);
     }
@@ -122,23 +122,13 @@ module free_tunnel_sui::atomic_lock {
         assert!(!storeA.proposedLock.contains(reqId), EINVALID_REQ_ID);
 
         let proposer = ctx.sender();
-        assert!(proposer != DEAD_ADDRESS, EINVALID_PROPOSER);
+        assert!(proposer != EXECUTED_PLACEHOLDER, EINVALID_PROPOSER);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
         storeA.proposedLock.add(reqId, proposer);
 
-        let mut coinMerged = coin::zero<CoinType>(ctx);
-        pay::join_vec(&mut coinMerged, coinList);
-        let coinObject = coin::split(&mut coinMerged, amount, ctx);
-        transfer::public_transfer(coinMerged, ctx.sender());
-
-        if (storeA.coinsPendingLock.contains(tokenIndex)) {
-            let coinInside = storeA.coinsPendingLock.borrow_mut(tokenIndex);
-            coin::join(coinInside, coinObject);
-        } else {
-            storeA.coinsPendingLock.add(tokenIndex, coinObject);
-        };
+        utils::joinCoins<CoinType>(coinList, amount, &mut storeA.lockedCoins, tokenIndex, ctx);
         event::emit(TokenLockProposed{ reqId, proposer });
     }
 
@@ -154,14 +144,14 @@ module free_tunnel_sui::atomic_lock {
         clockObject: &Clock,
     ) {
         let proposer = storeA.proposedLock[reqId];
-        assert!(proposer != DEAD_ADDRESS, EINVALID_REQ_ID);
+        assert!(proposer != EXECUTED_PLACEHOLDER, EINVALID_REQ_ID);
 
         let message = req_helpers::msgFromReqSigningMessage(reqId);
         permissions::checkMultiSignatures(
             message, r, yParityAndS, executors, exeIndex, clockObject, storeP,
         );
 
-        *storeA.proposedLock.borrow_mut(reqId) = DEAD_ADDRESS;
+        *storeA.proposedLock.borrow_mut(reqId) = EXECUTED_PLACEHOLDER;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
@@ -182,7 +172,7 @@ module free_tunnel_sui::atomic_lock {
         ctx: &mut TxContext,
     ) {
         let proposer = storeA.proposedLock[reqId];
-        assert!(proposer != DEAD_ADDRESS, EINVALID_REQ_ID);
+        assert!(proposer != EXECUTED_PLACEHOLDER, EINVALID_REQ_ID);
         assert!(
             clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
             + EXPIRE_PERIOD, EWAIT_UNTIL_EXPIRED
@@ -193,7 +183,7 @@ module free_tunnel_sui::atomic_lock {
         let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
-        let coinInside = storeA.coinsPendingLock.borrow_mut(tokenIndex);
+        let coinInside = storeA.lockedCoins.borrow_mut(tokenIndex);
         let coinObject: Coin<CoinType> = coin::split(coinInside, amount, ctx);
 
         transfer::public_transfer(coinObject, proposer);
@@ -214,7 +204,7 @@ module free_tunnel_sui::atomic_lock {
         req_helpers::checkCreatedTimeFrom(reqId, clockObject);
         assert!(req_helpers::actionFrom(reqId) & 0x0f == 2, ENOT_BURN_UNLOCK);
         assert!(!storeA.proposedUnlock.contains(reqId), EINVALID_REQ_ID);
-        assert!(recipient != DEAD_ADDRESS, EINVALID_RECIPIENT);
+        assert!(recipient != EXECUTED_PLACEHOLDER, EINVALID_RECIPIENT);
 
         let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
@@ -237,19 +227,19 @@ module free_tunnel_sui::atomic_lock {
         ctx: &mut TxContext,
     ) {
         let recipient = storeA.proposedUnlock[reqId];
-        assert!(recipient != DEAD_ADDRESS, EINVALID_REQ_ID);
+        assert!(recipient != EXECUTED_PLACEHOLDER, EINVALID_REQ_ID);
 
         let message = req_helpers::msgFromReqSigningMessage(reqId);
         permissions::checkMultiSignatures(
             message, r, yParityAndS, executors, exeIndex, clockObject, storeP,
         );
 
-        *storeA.proposedUnlock.borrow_mut(reqId) = DEAD_ADDRESS;
+        *storeA.proposedUnlock.borrow_mut(reqId) = EXECUTED_PLACEHOLDER;
 
         let amount = req_helpers::amountFrom(reqId, storeR);
         let tokenIndex = req_helpers::tokenIndexFrom<CoinType>(reqId, storeR);
 
-        let coinInside = storeA.coinsPendingLock.borrow_mut(tokenIndex);
+        let coinInside = storeA.lockedCoins.borrow_mut(tokenIndex);
         let coinObject: Coin<CoinType> = coin::split(coinInside, amount, ctx);
 
         transfer::public_transfer(coinObject, recipient);
@@ -263,7 +253,7 @@ module free_tunnel_sui::atomic_lock {
         clockObject: &Clock,
     ) {
         let recipient = storeA.proposedUnlock[reqId];
-        assert!(recipient != DEAD_ADDRESS, EINVALID_REQ_ID);
+        assert!(recipient != EXECUTED_PLACEHOLDER, EINVALID_REQ_ID);
         assert!(
             clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
             + EXPIRE_EXTRA_PERIOD, EWAIT_UNTIL_EXPIRED
