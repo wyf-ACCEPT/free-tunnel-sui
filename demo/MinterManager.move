@@ -68,7 +68,7 @@ module project_name::minter_manager {
     }
 
     public entry fun issueMinterCap<CoinType>(
-        minter: address,
+        recipient: address,
         treasuryCapManager: &TreasuryCapManager<CoinType>,
         ctx: &mut TxContext,
     ) {
@@ -77,7 +77,7 @@ module project_name::minter_manager {
             id: object::new(ctx),
             managerId: object::uid_to_inner(&treasuryCapManager.id),
         };
-        transfer::public_transfer(minterCap, minter);
+        transfer::public_transfer(minterCap, recipient);
     }
 
     public entry fun revokeMinterCap<CoinType>(
