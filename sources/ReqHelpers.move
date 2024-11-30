@@ -23,7 +23,6 @@ module free_tunnel_sui::req_helpers {
     const ECREATED_TIME_TOO_EARLY: u64 = 6;
     const ECREATED_TIME_TOO_LATE: u64 = 7;
     const EAMOUNT_CANNOT_BE_ZERO: u64 = 8;
-    const ETOKEN_INDEX_WRONG: u64 = 9;
     const ETOKEN_TYPE_MISMATCH: u64 = 10;
 
 
@@ -59,16 +58,7 @@ module free_tunnel_sui::req_helpers {
         assert!(tokenIndex > 0, ETOKEN_INDEX_CANNOT_BE_ZERO);
         let tokenType = type_name::get<CoinType>();
         store.tokens.add(tokenIndex, tokenType);
-
-        if (decimals == 6) {
-            assert!(tokenIndex < 64, ETOKEN_INDEX_WRONG);
-        } else if (decimals == 18) {
-            assert!(tokenIndex >= 64&& tokenIndex < 192, ETOKEN_INDEX_WRONG);
-        } else {
-            assert!(tokenIndex >= 192, ETOKEN_INDEX_WRONG);
-            store.tokenDecimals.add(tokenIndex, decimals);
-        };
-
+        store.tokenDecimals.add(tokenIndex, decimals);
         event::emit(TokenAdded { tokenIndex, tokenType });
     }
 
@@ -76,9 +66,7 @@ module free_tunnel_sui::req_helpers {
         assert!(store.tokens.contains(tokenIndex), ETOKEN_INDEX_NONEXISTENT);
         assert!(tokenIndex > 0, ETOKEN_INDEX_CANNOT_BE_ZERO);
         let tokenType = store.tokens.remove(tokenIndex);
-        if (tokenIndex >= 192) {
-            store.tokenDecimals.remove(tokenIndex);
-        };
+        store.tokenDecimals.remove(tokenIndex);
         event::emit(TokenRemoved { tokenIndex, tokenType });
     }
 
@@ -139,15 +127,11 @@ module free_tunnel_sui::req_helpers {
     public(package) fun amountFrom(reqId: vector<u8>, store: &ReqHelpersStorage): u64 {
         let mut amount = decodeAmount(reqId);
         let tokenIndex = decodeTokenIndex(reqId);
-        if (tokenIndex >= 192) {
-            let decimals = store.tokenDecimals[tokenIndex];
-            if (decimals > 6) {
-                amount = amount * (10 as u64).pow(decimals - 6);
-            } else {
-                amount = amount / (10 as u64).pow(6 - decimals);
-            }
-        } else if (tokenIndex >= 64) {
-            amount = amount * (10 as u64).pow(12);
+        let decimals = store.tokenDecimals[tokenIndex];
+        if (decimals > 6) {
+            amount = amount * (10 as u64).pow(decimals - 6);
+        } else if (decimals < 6) {
+            amount = amount / (10 as u64).pow(6 - decimals);
         };
         amount
     }
@@ -222,7 +206,7 @@ module free_tunnel_sui::req_helpers {
     fun testMsgFromReqSigningMessage1() {
         // action 1: lock-mint
         let reqId = x"112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = b"\x19Ethereum Signed Message:\n112[SolvBTC Bridge]\nSign to execute a lock-mint:\n0x112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = b"\x19Ethereum Signed Message:\n120[BounceBit Token Bridge]\nSign to execute a lock-mint:\n0x112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
         assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 
@@ -230,7 +214,7 @@ module free_tunnel_sui::req_helpers {
     fun testMsgFromReqSigningMessage2() {
         // action 2: burn-unlock
         let reqId = x"112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = b"\x19Ethereum Signed Message:\n114[SolvBTC Bridge]\nSign to execute a burn-unlock:\n0x112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = b"\x19Ethereum Signed Message:\n122[BounceBit Token Bridge]\nSign to execute a burn-unlock:\n0x112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
         assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 
@@ -238,7 +222,7 @@ module free_tunnel_sui::req_helpers {
     fun testMsgFromReqSigningMessage3() {
         // action 3: burn-mint
         let reqId = x"112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = b"\x19Ethereum Signed Message:\n112[SolvBTC Bridge]\nSign to execute a burn-mint:\n0x112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = b"\x19Ethereum Signed Message:\n120[BounceBit Token Bridge]\nSign to execute a burn-mint:\n0x112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
         assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 

@@ -105,7 +105,7 @@ module free_tunnel_sui::utils {
     }
 
     public(package) fun BRIDGE_CHANNEL(): vector<u8> {
-        b"SolvBTC Bridge"
+        b"BounceBit Token Bridge"
     }
 
     #[allow(lint(self_transfer))]

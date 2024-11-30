@@ -59,6 +59,16 @@ module free_tunnel_sui::permissions {
         }
     }
 
+    public entry fun initExecutors(
+        executors: vector<vector<u8>>,
+        threshold: u64,
+        store: &mut PermissionsStorage,
+        ctx: &mut TxContext,
+    ) {
+        assertOnlyAdmin(store, ctx);
+        initExecutorsInternal(executors, threshold, store);
+    }
+
     public struct AdminTransferred has copy, drop {
         prevAdmin: address,
         newAdmin: address,

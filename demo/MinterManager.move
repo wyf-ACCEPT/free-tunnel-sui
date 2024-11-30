@@ -4,9 +4,9 @@ module mint::minter_manager {
     use sui::pay;
     use sui::coin::{Self, Coin, TreasuryCap};
 
-    const DECIMALS: u8 = 18;
-    const NAME: vector<u8> = b"Coin Name";
-    const SYMBOL: vector<u8> = b"SYMBOL";
+    const DECIMALS: u8 = 8;
+    const NAME: vector<u8> = b"BBUSD";
+    const SYMBOL: vector<u8> = b"BBUSD";
 
     const ENOT_SUPER_ADMIN: u64 = 1;
     const ETREASURY_CAP_MANAGER_DESTROYED: u64 = 2;
