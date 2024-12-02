@@ -4,13 +4,12 @@ edition = "2024.beta"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
-mint_manager = { local = "../mint_manager" }
+solvbtc = { local = "../SolvBTC-SUI-Interface/solvbtc" }
 
 [addresses]
 free_tunnel_sui = "0x0"
-mint = "0x__package_id_of_mint_manager__"
+solvbtc = "0x5d9cf18136cdabf79302e28e6ee1cf73fc868fab8e0b5e98a23645a99899669a"
 
 [dev-dependencies]
 
 [dev-addresses]
-

@@ -9,7 +9,7 @@ module free_tunnel_sui::atomic_mint {
     use free_tunnel_sui::utils;
     use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage, EXPIRE_PERIOD, EXPIRE_EXTRA_PERIOD};
     use free_tunnel_sui::permissions::{Self, PermissionsStorage};
-    use mint_manager::minter_manager::{Self, MinterCap, TreasuryCapManager};
+    use solvbtc::minter_manager::{Self, MinterCap, TreasuryCapManager};
 
 
     // =========================== Constants ==========================

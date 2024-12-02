@@ -2,11 +2,11 @@
 
 [move]
 version = 3
-manifest_digest = "7C15CF1B9825B1BAC69FE75DF43A7E6234DF8DF99E26E22E40A4A0E66022FE30"
+manifest_digest = "35300205ADCCC2BA14396D4998CAEBE9919D3157D90FEE45A99C026EFFE6C7E2"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { id = "Sui", name = "Sui" },
-  { id = "mint", name = "mint" },
+  { id = "solvbtc", name = "solvbtc" },
 ]
 
 [[move.package]]
@@ -22,8 +22,8 @@ dependencies = [
 ]
 
 [[move.package]]
-id = "mint_manager"
-source = { local = "../mint_manager" }
+id = "solvbtc"
+source = { local = "../SolvBTC-SUI-Interface/solvbtc" }
 
 dependencies = [
   { id = "Sui", name = "Sui" },
@@ -38,8 +38,8 @@ flavor = "sui"
 
 [env.testnet]
 chain-id = "4c78adac"
-original-published-id = "0xcdc0da0fcca75cb1ec9fe27988b6b7ceecf0a9c3afb0441c7c37fe1bd3a74387"
-latest-published-id = "0xcdc0da0fcca75cb1ec9fe27988b6b7ceecf0a9c3afb0441c7c37fe1bd3a74387"
+original-published-id = "0xb7ce7968c61194a2e6deb1c6c4dca2809eed78fbc592d7227fe54ded01eede79"
+latest-published-id = "0xb7ce7968c61194a2e6deb1c6c4dca2809eed78fbc592d7227fe54ded01eede79"
 published-version = "1"
 
 [env.mainnet]
