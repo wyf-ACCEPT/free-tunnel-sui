@@ -22,8 +22,8 @@ dependencies = [
 ]
 
 [[move.package]]
-id = "mint"
-source = { local = "../solv_mint_manager" }
+id = "mint_manager"
+source = { local = "../mint_manager" }
 
 dependencies = [
   { id = "Sui", name = "Sui" },
