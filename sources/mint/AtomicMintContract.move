@@ -7,15 +7,13 @@ module free_tunnel_sui::atomic_mint {
     use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
     use free_tunnel_sui::utils;
-    use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage};
+    use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage, EXPIRE_PERIOD, EXPIRE_EXTRA_PERIOD};
     use free_tunnel_sui::permissions::{Self, PermissionsStorage};
     use mint_manager::minter_manager::{Self, MinterCap, TreasuryCapManager};
 
 
     // =========================== Constants ==========================
     const EXECUTED_PLACEHOLDER: address = @0xed;
-    const EXPIRE_PERIOD: u64 = 259200;          // 72 hours
-    const EXPIRE_EXTRA_PERIOD: u64 = 345600;    // 96 hours
 
     const EINVALID_REQ_ID: u64 = 50;
     const EINVALID_RECIPIENT: u64 = 51;
@@ -217,7 +215,7 @@ module free_tunnel_sui::atomic_mint {
         assert!(recipient != EXECUTED_PLACEHOLDER, EINVALID_REQ_ID);
         assert!(
             clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
-            + EXPIRE_EXTRA_PERIOD, EWAIT_UNTIL_EXPIRED
+            + EXPIRE_EXTRA_PERIOD(), EWAIT_UNTIL_EXPIRED
         );
 
         storeA.proposedMint.remove(reqId);
@@ -324,7 +322,7 @@ module free_tunnel_sui::atomic_mint {
         assert!(proposer != EXECUTED_PLACEHOLDER, EINVALID_REQ_ID);
         assert!(
             clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
-            + EXPIRE_PERIOD, EWAIT_UNTIL_EXPIRED
+            + EXPIRE_PERIOD(), EWAIT_UNTIL_EXPIRED
         );
 
         storeA.proposedBurn.remove(reqId);

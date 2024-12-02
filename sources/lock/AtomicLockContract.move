@@ -7,14 +7,12 @@ module free_tunnel_sui::atomic_lock {
     use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
     use free_tunnel_sui::utils;
-    use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage};
+    use free_tunnel_sui::req_helpers::{Self, ReqHelpersStorage, EXPIRE_PERIOD, EXPIRE_EXTRA_PERIOD};
     use free_tunnel_sui::permissions::{Self, PermissionsStorage};
 
 
     // =========================== Constants ==========================
     const EXECUTED_PLACEHOLDER: address = @0xed;
-    const EXPIRE_PERIOD: u64 = 259200;          // 72 hours
-    const EXPIRE_EXTRA_PERIOD: u64 = 345600;    // 96 hours
 
     const ENOT_LOCK_MINT: u64 = 70;
     const EINVALID_REQ_ID: u64 = 71;
@@ -175,7 +173,7 @@ module free_tunnel_sui::atomic_lock {
         assert!(proposer != EXECUTED_PLACEHOLDER, EINVALID_REQ_ID);
         assert!(
             clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
-            + EXPIRE_PERIOD, EWAIT_UNTIL_EXPIRED
+            + EXPIRE_PERIOD(), EWAIT_UNTIL_EXPIRED
         );
 
         storeA.proposedLock.remove(reqId);
@@ -256,7 +254,7 @@ module free_tunnel_sui::atomic_lock {
         assert!(recipient != EXECUTED_PLACEHOLDER, EINVALID_REQ_ID);
         assert!(
             clock::timestamp_ms(clockObject) / 1000 > req_helpers::createdTimeFrom(reqId)
-            + EXPIRE_EXTRA_PERIOD, EWAIT_UNTIL_EXPIRED
+            + EXPIRE_EXTRA_PERIOD(), EWAIT_UNTIL_EXPIRED
         );
 
         storeA.proposedUnlock.remove(reqId);

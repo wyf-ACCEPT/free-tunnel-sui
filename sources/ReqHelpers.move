@@ -6,13 +6,11 @@ module free_tunnel_sui::req_helpers {
     use sui::table;
     use sui::clock::{Self, Clock};
     use std::type_name::{Self, TypeName};
-    use free_tunnel_sui::utils::{smallU64ToString, BRIDGE_CHANNEL};
+    use free_tunnel_sui::utils::smallU64ToString;
 
 
     // =========================== Constants ==========================
     const CHAIN: u8 = 0xa0;
-    const PROPOSE_PERIOD: u64 = 172800;         // 48 hours
-    const ETH_SIGN_HEADER: vector<u8> = b"\x19Ethereum Signed Message:\n";
 
     const ETOKEN_INDEX_OCCUPIED: u64 = 0;
     const ETOKEN_INDEX_CANNOT_BE_ZERO: u64 = 1;
@@ -24,6 +22,26 @@ module free_tunnel_sui::req_helpers {
     const ECREATED_TIME_TOO_LATE: u64 = 7;
     const EAMOUNT_CANNOT_BE_ZERO: u64 = 8;
     const ETOKEN_TYPE_MISMATCH: u64 = 9;
+
+    public(package) fun BRIDGE_CHANNEL(): vector<u8> {
+        b"SolvBTC Bridge"
+    }
+
+    public(package) fun PROPOSE_PERIOD(): u64 {
+        172800          // 48 hours
+    }
+
+    public(package) fun EXPIRE_PERIOD(): u64 {
+        259200          // 72 hours
+    }
+
+    public(package) fun EXPIRE_EXTRA_PERIOD(): u64 {
+        345600          // 96 hours
+    }
+
+    public(package) fun ETH_SIGN_HEADER(): vector<u8> {
+        b"\x19Ethereum Signed Message:\n"
+    }
 
 
     // ============================ Storage ===========================
@@ -87,7 +105,7 @@ module free_tunnel_sui::req_helpers {
 
     public(package) fun checkCreatedTimeFrom(reqId: vector<u8>, clockObject: &Clock): u64 {
         let time = createdTimeFrom(reqId);
-        assert!(time > clock::timestamp_ms(clockObject) / 1000 - PROPOSE_PERIOD, ECREATED_TIME_TOO_EARLY);
+        assert!(time > clock::timestamp_ms(clockObject) / 1000 - PROPOSE_PERIOD(), ECREATED_TIME_TOO_EARLY);
         assert!(time < clock::timestamp_ms(clockObject) / 1000 + 60, ECREATED_TIME_TOO_LATE);
         time
     }
@@ -143,7 +161,7 @@ module free_tunnel_sui::req_helpers {
         match (specificAction) {
             1 => {
                 (vector[
-                    ETH_SIGN_HEADER,
+                    ETH_SIGN_HEADER(),
                     smallU64ToString(3 + BRIDGE_CHANNEL().length() + 29 + 66),
                     b"[", BRIDGE_CHANNEL(), b"]\n",
                     b"Sign to execute a lock-mint:\n",
@@ -152,7 +170,7 @@ module free_tunnel_sui::req_helpers {
             },
             2 => {
                 (vector[
-                    ETH_SIGN_HEADER,
+                    ETH_SIGN_HEADER(),
                     smallU64ToString(3 + BRIDGE_CHANNEL().length() + 31 + 66),
                     b"[", BRIDGE_CHANNEL(), b"]\n",
                     b"Sign to execute a burn-unlock:\n",
@@ -161,7 +179,7 @@ module free_tunnel_sui::req_helpers {
             },
             3 => {
                 (vector[
-                    ETH_SIGN_HEADER,
+                    ETH_SIGN_HEADER(),
                     smallU64ToString(3 + BRIDGE_CHANNEL().length() + 29 + 66),
                     b"[", BRIDGE_CHANNEL(), b"]\n",
                     b"Sign to execute a burn-mint:\n",
@@ -206,7 +224,7 @@ module free_tunnel_sui::req_helpers {
     fun testMsgFromReqSigningMessage1() {
         // action 1: lock-mint
         let reqId = x"112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = b"\x19Ethereum Signed Message:\n120[BounceBit Token Bridge]\nSign to execute a lock-mint:\n0x112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = b"\x19Ethereum Signed Message:\n112[SolvBTC Bridge]\nSign to execute a lock-mint:\n0x112233445566018899aabbccddeeff004040ffffffffffffffffffffffffffff";
         assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 
@@ -214,7 +232,7 @@ module free_tunnel_sui::req_helpers {
     fun testMsgFromReqSigningMessage2() {
         // action 2: burn-unlock
         let reqId = x"112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = b"\x19Ethereum Signed Message:\n122[BounceBit Token Bridge]\nSign to execute a burn-unlock:\n0x112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = b"\x19Ethereum Signed Message:\n114[SolvBTC Bridge]\nSign to execute a burn-unlock:\n0x112233445566028899aabbccddeeff004040ffffffffffffffffffffffffffff";
         assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 
@@ -222,7 +240,7 @@ module free_tunnel_sui::req_helpers {
     fun testMsgFromReqSigningMessage3() {
         // action 3: burn-mint
         let reqId = x"112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
-        let expected = b"\x19Ethereum Signed Message:\n120[BounceBit Token Bridge]\nSign to execute a burn-mint:\n0x112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
+        let expected = b"\x19Ethereum Signed Message:\n112[SolvBTC Bridge]\nSign to execute a burn-mint:\n0x112233445566038899aabbccddeeff004040ffffffffffffffffffffffffffff";
         assert!(msgFromReqSigningMessage(reqId) == expected);
     }
 

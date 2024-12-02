@@ -104,10 +104,6 @@ module free_tunnel_sui::utils {
         };
     }
 
-    public(package) fun BRIDGE_CHANNEL(): vector<u8> {
-        b"BounceBit Token Bridge"
-    }
-
     #[allow(lint(self_transfer))]
     public(package) fun joinCoins<CoinType>(
         coinList: vector<Coin<CoinType>>,

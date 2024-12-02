@@ -7,11 +7,11 @@ module free_tunnel_sui::permissions {
     use sui::event;
     use sui::table;
     use sui::clock::{Self, Clock};
-    use free_tunnel_sui::utils::{recoverEthAddress, smallU64ToString, smallU64Log10, assertEthAddressList, BRIDGE_CHANNEL};
+    use free_tunnel_sui::utils::{recoverEthAddress, smallU64ToString, smallU64Log10, assertEthAddressList};
+    use free_tunnel_sui::req_helpers::{BRIDGE_CHANNEL, ETH_SIGN_HEADER};
 
 
     // =========================== Constants ==========================
-    const ETH_SIGN_HEADER: vector<u8> = b"\x19Ethereum Signed Message:\n";
     const ETH_ZERO_ADDRESS: vector<u8> = vector[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     const ENOT_ADMIN: u64 = 20;
@@ -164,7 +164,7 @@ module free_tunnel_sui::permissions {
         );
 
         let msg = vector[
-            ETH_SIGN_HEADER,
+            ETH_SIGN_HEADER(),
             smallU64ToString(
                 3 + BRIDGE_CHANNEL().length() + (29 + 43 * newExecutors.length()) 
                 + (12 + smallU64Log10(threshold) + 1) + (15 + 10) + (25 + smallU64Log10(exeIndex) + 1)
