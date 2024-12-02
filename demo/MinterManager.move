@@ -4,7 +4,7 @@ module mint_manager::minter_manager {
     use sui::pay;
     use sui::coin::{Self, Coin, TreasuryCap};
 
-    const ENOT_SUPER_ADMIN: u64 = 1;
+    const ENOT_ADMIN: u64 = 1;
     const ETREASURY_CAP_MANAGER_DESTROYED: u64 = 2;
     const EMINTER_REVOKED: u64 = 3;
 
@@ -27,7 +27,7 @@ module mint_manager::minter_manager {
         newAdmin: address,
         ctx: &mut TxContext,
     ) {
-        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_SUPER_ADMIN);
+        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_ADMIN);
         treasuryCapManager.admin = newAdmin;
     }
 
@@ -49,7 +49,7 @@ module mint_manager::minter_manager {
         treasuryCapManager: TreasuryCapManager<CoinType>,
         ctx: &mut TxContext,
     ) {
-        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_SUPER_ADMIN);
+        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_ADMIN);
         let TreasuryCapManager<CoinType> {
             id, admin: _, treasuryCap, revokedMinters,
         } = treasuryCapManager;
@@ -64,7 +64,7 @@ module mint_manager::minter_manager {
         treasuryCapManager: &TreasuryCapManager<CoinType>,
         ctx: &mut TxContext,
     ) {
-        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_SUPER_ADMIN);
+        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_ADMIN);
         let minterCap = MinterCap<CoinType> {
             id: object::new(ctx),
             managerId: object::uid_to_inner(&treasuryCapManager.id),
@@ -77,7 +77,7 @@ module mint_manager::minter_manager {
         treasuryCapManager: &mut TreasuryCapManager<CoinType>,
         ctx: &mut TxContext,
     ) {
-        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_SUPER_ADMIN);
+        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_ADMIN);
         treasuryCapManager.revokedMinters.add(object::uid_to_inner(&minterCap.id), true);
     }
 
