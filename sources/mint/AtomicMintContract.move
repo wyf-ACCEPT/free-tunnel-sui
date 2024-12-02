@@ -25,7 +25,6 @@ module free_tunnel_sui::atomic_mint {
     const EINVALID_PROPOSER: u64 = 55;
     const ENOT_BURN_UNLOCK: u64 = 56;
     const EALREADY_HAVE_MINTERCAP: u64 = 57;
-    const ENO_MINTERCAP: u64 = 58;
 
 
     // ============================ Storage ===========================
@@ -94,11 +93,21 @@ module free_tunnel_sui::atomic_mint {
     public entry fun addToken<CoinType>(
         tokenIndex: u8,
         decimals: u8,
+        storeP: &mut PermissionsStorage,
+        storeR: &mut ReqHelpersStorage,
+        ctx: &mut TxContext,
+    ) {
+        permissions::assertOnlyAdmin(storeP, ctx);
+        req_helpers::addTokenInternal<CoinType>(tokenIndex, decimals, storeR);
+    }
+
+    public entry fun transferMinterCap<CoinType>(
+        tokenIndex: u8,
         minterCap: MinterCap<CoinType>,
         storeA: &mut AtomicMintStorage,
         storeR: &mut ReqHelpersStorage,
-    ) {
-        req_helpers::addTokenInternal<CoinType>(tokenIndex, decimals, storeR);
+    ){
+        req_helpers::checkTokenType<CoinType>(tokenIndex, storeR);
         assert!(!storeA.minterCaps.contains(tokenIndex), EALREADY_HAVE_MINTERCAP);
         storeA.minterCaps.add(tokenIndex, minterCap);
     }
@@ -112,9 +121,10 @@ module free_tunnel_sui::atomic_mint {
     ) {
         permissions::assertOnlyAdmin(storeP, ctx);
         req_helpers::removeTokenInternal(tokenIndex, storeR);
-        assert!(storeA.minterCaps.contains(tokenIndex), ENO_MINTERCAP);
-        let minterCap: MinterCap<CoinType> = storeA.minterCaps.remove(tokenIndex);
-        transfer::public_freeze_object(minterCap);      // Burn the MinterCap object
+        if (storeA.minterCaps.contains(tokenIndex)) {
+            let minterCap: MinterCap<CoinType> = storeA.minterCaps.remove(tokenIndex);
+            transfer::public_freeze_object(minterCap);      // Burn the MinterCap object
+        }
     }
 
     public entry fun proposeMint<CoinType>(

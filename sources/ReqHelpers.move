@@ -23,7 +23,7 @@ module free_tunnel_sui::req_helpers {
     const ECREATED_TIME_TOO_EARLY: u64 = 6;
     const ECREATED_TIME_TOO_LATE: u64 = 7;
     const EAMOUNT_CANNOT_BE_ZERO: u64 = 8;
-    const ETOKEN_TYPE_MISMATCH: u64 = 10;
+    const ETOKEN_TYPE_MISMATCH: u64 = 9;
 
 
     // ============================ Storage ===========================
@@ -100,7 +100,7 @@ module free_tunnel_sui::req_helpers {
         reqId[7]
     }
 
-    fun checkTokenType<CoinType>(tokenIndex: u8, store: &ReqHelpersStorage) {
+    public(package) fun checkTokenType<CoinType>(tokenIndex: u8, store: &ReqHelpersStorage) {
         let tokenTypeExpected = store.tokens[tokenIndex];
         let tokenTypeActual = type_name::get<CoinType>();
         assert!(tokenTypeExpected == tokenTypeActual, ETOKEN_TYPE_MISMATCH);
