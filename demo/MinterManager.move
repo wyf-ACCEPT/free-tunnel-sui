@@ -4,20 +4,14 @@ module mint_manager::minter_manager {
     use sui::pay;
     use sui::coin::{Self, Coin, TreasuryCap};
 
-    const DECIMALS: u8 = 8;
-    const NAME: vector<u8> = b"BBUSD";
-    const SYMBOL: vector<u8> = b"BBUSD";
-
     const ENOT_SUPER_ADMIN: u64 = 1;
     const ETREASURY_CAP_MANAGER_DESTROYED: u64 = 2;
     const EMINTER_REVOKED: u64 = 3;
 
 
-    public struct MINTER_MANAGER has drop {}
-
     public struct TreasuryCapManager<phantom CoinType> has key, store {
         id: UID,
-        superAdmin: address,
+        admin: address,
         treasuryCap: TreasuryCap<CoinType>,
         revokedMinters: table::Table<ID, bool>,
     }
@@ -28,25 +22,23 @@ module mint_manager::minter_manager {
     }
 
 
-    fun init(witness: MINTER_MANAGER, ctx: &mut TxContext) {
-        let (treasuryCap, metadata) = coin::create_currency(
-            witness, DECIMALS, SYMBOL, NAME, b"", option::none(), ctx,
-        );
-        transfer::public_freeze_object(metadata);
-
-        setupTreasuryCapManager(ctx.sender(), treasuryCap, ctx);
+    public entry fun transferAdmin<CoinType>(
+        treasuryCapManager: &mut TreasuryCapManager<CoinType>,
+        newAdmin: address,
+        ctx: &mut TxContext,
+    ) {
+        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_SUPER_ADMIN);
+        treasuryCapManager.admin = newAdmin;
     }
 
-
-    // ===================== Treasury Cap Management =====================
     public entry fun setupTreasuryCapManager<CoinType>(
-        superAdmin: address,
+        admin: address,
         treasuryCap: TreasuryCap<CoinType>,
         ctx: &mut TxContext,
     ) {
         let treasuryCapManager = TreasuryCapManager<CoinType> {
             id: object::new(ctx),
-            superAdmin,
+            admin,
             treasuryCap,
             revokedMinters: table::new(ctx),
         };
@@ -57,9 +49,9 @@ module mint_manager::minter_manager {
         treasuryCapManager: TreasuryCapManager<CoinType>,
         ctx: &mut TxContext,
     ) {
-        assert!(ctx.sender() == treasuryCapManager.superAdmin, ENOT_SUPER_ADMIN);
+        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_SUPER_ADMIN);
         let TreasuryCapManager<CoinType> {
-            id, superAdmin: _, treasuryCap, revokedMinters,
+            id, admin: _, treasuryCap, revokedMinters,
         } = treasuryCapManager;
 
         object::delete(id);
@@ -72,7 +64,7 @@ module mint_manager::minter_manager {
         treasuryCapManager: &TreasuryCapManager<CoinType>,
         ctx: &mut TxContext,
     ) {
-        assert!(ctx.sender() == treasuryCapManager.superAdmin, ENOT_SUPER_ADMIN);
+        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_SUPER_ADMIN);
         let minterCap = MinterCap<CoinType> {
             id: object::new(ctx),
             managerId: object::uid_to_inner(&treasuryCapManager.id),
@@ -85,7 +77,7 @@ module mint_manager::minter_manager {
         treasuryCapManager: &mut TreasuryCapManager<CoinType>,
         ctx: &mut TxContext,
     ) {
-        assert!(ctx.sender() == treasuryCapManager.superAdmin, ENOT_SUPER_ADMIN);
+        assert!(ctx.sender() == treasuryCapManager.admin, ENOT_SUPER_ADMIN);
         treasuryCapManager.revokedMinters.add(object::uid_to_inner(&minterCap.id), true);
     }
 
