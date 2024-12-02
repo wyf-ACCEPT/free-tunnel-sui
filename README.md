@@ -9,4 +9,4 @@
 3. The project team deploys `mint_manager` and provides us with the deployed package ID, which also needs to be included in our package.
 4. We build the project and deploy `atomic_lock` or `atomic_mint`.
 5. We call `addToken` to add the project team's coin information.
-6. The project team calls `transferCap` to transfer the `minterCap` to `free_tunnel_sui`.
+6. The project team calls `transferMinterCap` to transfer the `minterCap` to `free_tunnel_sui`.
