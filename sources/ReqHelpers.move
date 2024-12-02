@@ -23,26 +23,11 @@ module free_tunnel_sui::req_helpers {
     const EAMOUNT_CANNOT_BE_ZERO: u64 = 8;
     const ETOKEN_TYPE_MISMATCH: u64 = 9;
 
-    public(package) fun BRIDGE_CHANNEL(): vector<u8> {
-        b"SolvBTC Bridge"
-    }
-
-    public(package) fun PROPOSE_PERIOD(): u64 {
-        172800          // 48 hours
-    }
-
-    public(package) fun EXPIRE_PERIOD(): u64 {
-        259200          // 72 hours
-    }
-
-    public(package) fun EXPIRE_EXTRA_PERIOD(): u64 {
-        345600          // 96 hours
-    }
-
-    public(package) fun ETH_SIGN_HEADER(): vector<u8> {
-        b"\x19Ethereum Signed Message:\n"
-    }
-
+    public(package) fun BRIDGE_CHANNEL(): vector<u8> { b"SolvBTC Bridge" }
+    public(package) fun PROPOSE_PERIOD(): u64 { 172800 }         // 48 hours
+    public(package) fun EXPIRE_PERIOD(): u64 { 259200 }          // 72 hours
+    public(package) fun EXPIRE_EXTRA_PERIOD(): u64 { 345600 }    // 96 hours
+    public(package) fun ETH_SIGN_HEADER(): vector<u8> { b"\x19Ethereum Signed Message:\n" }
 
     // ============================ Storage ===========================
     public struct ReqHelpersStorage has key, store {
