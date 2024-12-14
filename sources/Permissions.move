@@ -120,7 +120,7 @@ module free_tunnel_sui::permissions {
         let len = store._proposerList.length();
         if (index < len) {
             let lastProposer = store._proposerList[len - 1];
-            *store._proposerList.borrow_mut(index) = lastProposer;
+            *store._proposerList.borrow_mut(index - 1) = lastProposer;
             *store._proposerIndex.borrow_mut(lastProposer) = index;
         };
         store._proposerList.pop_back();
