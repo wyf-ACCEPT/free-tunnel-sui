@@ -121,7 +121,7 @@ module free_tunnel_sui::atomic_mint {
         req_helpers::removeTokenInternal(tokenIndex, storeR);
         if (storeA.minterCaps.contains(tokenIndex)) {
             let minterCap: MinterCap<CoinType> = storeA.minterCaps.remove(tokenIndex);
-            transfer::public_freeze_object(minterCap);      // Burn the MinterCap object
+            minter_manager::destroyMinterCap<CoinType>(minterCap);
         }
     }
 

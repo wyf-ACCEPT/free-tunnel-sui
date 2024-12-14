@@ -46,6 +46,10 @@ module mint_manager::minter_manager {
         minterCapId: ID,
     }
 
+    public struct MinterCapDestroyed has copy, drop {
+        minterCapId: ID,
+    }
+
 
     // Entry functions
     public entry fun transferAdmin<CoinType>(
@@ -114,6 +118,15 @@ module mint_manager::minter_manager {
         treasuryCapManager.revokedMinters.add(object::uid_to_inner(&minterCap.id), true);
         let minterCapId = object::uid_to_inner(&minterCap.id);
         event::emit(MinterCapRevoked { minterCapId });
+    }
+
+    public entry fun destroyMinterCap<CoinType>(
+        minterCap: MinterCap<CoinType>,
+    ) {
+        let MinterCap<CoinType> { id, managerId: _ } = minterCap;
+        let minterCapId = object::uid_to_inner(&id);
+        object::delete(id);
+        event::emit(MinterCapDestroyed { minterCapId });
     }
 
     public entry fun mint<CoinType>(
