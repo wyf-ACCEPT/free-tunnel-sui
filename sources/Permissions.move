@@ -48,6 +48,7 @@ module free_tunnel_sui::permissions {
     }
 
     public(package) fun initPermissionsStorage(ctx: &mut TxContext): PermissionsStorage {
+        event::emit(AdminTransferred { prevAdmin: @0x0, newAdmin: ctx.sender() });
         PermissionsStorage {
             id: object::new(ctx),
             _admin: ctx.sender(),
@@ -92,11 +93,6 @@ module free_tunnel_sui::permissions {
         assert!(store._proposerIndex.contains(ctx.sender()), ENOT_PROPOSER);
     }
 
-    public(package) fun initAdminInternal(admin: address, store: &mut PermissionsStorage) {
-        store._admin = admin;
-        event::emit(AdminTransferred { prevAdmin: @0x0, newAdmin: admin });
-    }
-
     public entry fun transferAdmin(newAdmin: address, store: &mut PermissionsStorage, ctx: &mut TxContext) {
         assertOnlyAdmin(store, ctx);
         let prevAdmin = store._admin;
@@ -133,6 +129,7 @@ module free_tunnel_sui::permissions {
 
     public(package) fun initExecutorsInternal(executors: vector<vector<u8>>, threshold: u64, store: &mut PermissionsStorage) {
         assertEthAddressList(executors);
+        assert!(threshold <= executors.length(), ENOT_MEET_THRESHOLD);
         assert!(store._exeThresholdForIndex.length() == 0, EEXECUTORS_ALREADY_INITIALIZED);
         assert!(threshold > 0, ETHRESHOLD_MUST_BE_GREATER_THAN_ZERO);
         store._executorsForIndex.push_back(executors);
@@ -154,6 +151,7 @@ module free_tunnel_sui::permissions {
     ) {
         assertEthAddressList(newExecutors);
         assert!(threshold > 0, ETHRESHOLD_MUST_BE_GREATER_THAN_ZERO);
+        assert!(threshold <= newExecutors.length(), ENOT_MEET_THRESHOLD);
         assert!(
             activeSince > clock::timestamp_ms(clockObject) / 1000 + 36 * 3600,  // 36 hours
             EACTIVE_SINCE_SHOULD_AFTER_36H,

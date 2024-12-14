@@ -22,6 +22,7 @@ module free_tunnel_sui::req_helpers {
     const ECREATED_TIME_TOO_LATE: u64 = 7;
     const EAMOUNT_CANNOT_BE_ZERO: u64 = 8;
     const ETOKEN_TYPE_MISMATCH: u64 = 9;
+    const EINVALID_ACTION: u64 = 10;
 
     public(package) fun BRIDGE_CHANNEL(): vector<u8> { b"SolvBTC Bridge" }
     public(package) fun PROPOSE_PERIOD(): u64 { 172800 }         // 48 hours
@@ -172,6 +173,7 @@ module free_tunnel_sui::req_helpers {
                 ]).flatten()
             },
             _ => {
+                assert!(false, EINVALID_ACTION);
                 vector::empty<u8>()
             }
         }
@@ -230,6 +232,7 @@ module free_tunnel_sui::req_helpers {
     }
 
     #[test]
+    #[expected_failure(abort_code = EINVALID_ACTION)]
     fun testMsgFromReqSigningMessage4() {
         let reqId = x"112233445566048899aabbccddeeff004040ffffffffffffffffffffffffffff";
         assert!(msgFromReqSigningMessage(reqId) == vector::empty<u8>());
