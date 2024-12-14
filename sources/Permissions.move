@@ -132,6 +132,7 @@ module free_tunnel_sui::permissions {
         assert!(threshold <= executors.length(), ENOT_MEET_THRESHOLD);
         assert!(store._exeThresholdForIndex.length() == 0, EEXECUTORS_ALREADY_INITIALIZED);
         assert!(threshold > 0, ETHRESHOLD_MUST_BE_GREATER_THAN_ZERO);
+        checkExecutorsNotDuplicated(executors);
         store._executorsForIndex.push_back(executors);
         store._exeThresholdForIndex.push_back(threshold);
         store._exeActiveSinceForIndex.push_back(1);
@@ -160,6 +161,7 @@ module free_tunnel_sui::permissions {
             activeSince < clock::timestamp_ms(clockObject) / 1000 + 120 * 3600,  // 5 days
             EACTIVE_SINCE_SHOULD_WITHIN_5D,
         );
+        checkExecutorsNotDuplicated(newExecutors);
 
         let msg = vector[
             ETH_SIGN_HEADER(),
@@ -260,6 +262,19 @@ module free_tunnel_sui::permissions {
         };
     }
 
+    fun checkExecutorsNotDuplicated(executors: vector<vector<u8>>) {
+        let mut i = 0;
+        while (i < executors.length()) {
+            let executor = executors[i];
+            let mut j = 0;
+            while (j < i) {
+                assert!(executors[j] != executor, EDUPLICATED_EXECUTORS);
+                j = j + 1;
+            };
+            i = i + 1;
+        };
+    }
+
     fun checkExecutorsForIndex(executors: vector<vector<u8>>, exeIndex: u64, clockObject: &Clock, store: &PermissionsStorage) {
         assertEthAddressList(executors);
         assert!(executors.length() >= store._exeThresholdForIndex[exeIndex], ENOT_MEET_THRESHOLD);
@@ -341,5 +356,27 @@ module free_tunnel_sui::permissions {
         assert!(cmpAddrList(vector[ethAddr1, ethAddr2], vector[ethAddr1, ethAddr1]));
         assert!(!cmpAddrList(vector[ethAddr2, ethAddr1], vector[ethAddr2, ethAddr2]));
         assert!(!cmpAddrList(vector[ethAddr2, ethAddr3], vector[ethAddr2, ethAddr3]));
+    }
+    
+    #[test]
+    fun testCheckExecutorsNotDuplicated() {
+        let executors = vector[
+            x"00112233445566778899aabbccddeeff00112233",
+            x"000000000000000000000000000000000000beef",
+            x"000000000000000000000000000000000000dead"
+        ];
+        checkExecutorsNotDuplicated(executors);
+    }
+    
+    #[test]
+    #[expected_failure(abort_code = EDUPLICATED_EXECUTORS)]
+    fun testCheckExecutorsNotDuplicatedWithDuplicated() {
+        let executors = vector[
+            x"00112233445566778899aabbccddeeff00112233",
+            x"000000000000000000000000000000000000beef",
+            x"000000000000000000000000000000000000dead",
+            x"000000000000000000000000000000000000beef"
+        ];
+        checkExecutorsNotDuplicated(executors);
     }
 }
