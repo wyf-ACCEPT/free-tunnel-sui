@@ -83,6 +83,13 @@ module free_tunnel_sui::permissions {
         proposer: address,
     }
 
+    public struct ExecutorsUpdated has copy, drop {
+        executors: vector<vector<u8>>,
+        threshold: u64,
+        activeSince: u64,
+        exeIndex: u64,
+    }
+
 
     // =========================== Functions ===========================
     public(package) fun assertOnlyAdmin(store: &PermissionsStorage, ctx: &TxContext) {
@@ -136,6 +143,7 @@ module free_tunnel_sui::permissions {
         store._executorsForIndex.push_back(executors);
         store._exeThresholdForIndex.push_back(threshold);
         store._exeActiveSinceForIndex.push_back(1);
+        event::emit(ExecutorsUpdated { executors, threshold, activeSince: 1, exeIndex: 0 });
     }
 
 
@@ -191,7 +199,8 @@ module free_tunnel_sui::permissions {
             *store._executorsForIndex.borrow_mut(newIndex) = newExecutors;
             *store._exeThresholdForIndex.borrow_mut(newIndex) = threshold;
             *store._exeActiveSinceForIndex.borrow_mut(newIndex) = activeSince;
-        }
+        };
+        event::emit(ExecutorsUpdated { executors: newExecutors, threshold, activeSince, exeIndex: newIndex });
     }
 
 

@@ -1,5 +1,6 @@
 module mint_manager::minter_manager {
 
+    use sui::event;
     use sui::table;
     use sui::pay;
     use sui::coin::{Self, Coin, TreasuryCap};
@@ -8,7 +9,7 @@ module mint_manager::minter_manager {
     const ETREASURY_CAP_MANAGER_DESTROYED: u64 = 2;
     const EMINTER_REVOKED: u64 = 3;
 
-
+    // Data structures
     public struct TreasuryCapManager<phantom CoinType> has key, store {
         id: UID,
         admin: address,
@@ -21,7 +22,32 @@ module mint_manager::minter_manager {
         managerId: ID,
     }
 
+    // Structs for events
+    public struct AdminTransferred has copy, drop {
+        prevAdmin: address,
+        newAdmin: address,
+    }
 
+    public struct TreasuryCapManagerSetup has copy, drop {
+        admin: address,
+        treasuryCapManagerId: ID,
+    }
+
+    public struct TreasuryCapManagerDestroyed has copy, drop {
+        treasuryCapManagerId: ID,
+    }
+
+    public struct MinterCapIssued has copy, drop {
+        recipient: address,
+        minterCapId: ID,
+    }
+
+    public struct MinterCapRevoked has copy, drop {
+        minterCapId: ID,
+    }
+
+
+    // Entry functions
     public entry fun transferAdmin<CoinType>(
         treasuryCapManager: &mut TreasuryCapManager<CoinType>,
         newAdmin: address,
@@ -29,6 +55,7 @@ module mint_manager::minter_manager {
     ) {
         assert!(ctx.sender() == treasuryCapManager.admin, ENOT_ADMIN);
         treasuryCapManager.admin = newAdmin;
+        event::emit(AdminTransferred { prevAdmin: ctx.sender(), newAdmin });
     }
 
     public entry fun setupTreasuryCapManager<CoinType>(
@@ -42,7 +69,9 @@ module mint_manager::minter_manager {
             treasuryCap,
             revokedMinters: table::new(ctx),
         };
+        let treasuryCapManagerId = object::uid_to_inner(&treasuryCapManager.id);
         transfer::public_share_object(treasuryCapManager);
+        event::emit(TreasuryCapManagerSetup { admin, treasuryCapManagerId });
     }
 
     public entry fun destroyTreasuryCapManager<CoinType>(
@@ -54,9 +83,11 @@ module mint_manager::minter_manager {
             id, admin: _, treasuryCap, revokedMinters,
         } = treasuryCapManager;
 
+        let treasuryCapManagerId = object::uid_to_inner(&id);
         object::delete(id);
         table::drop(revokedMinters);
         transfer::public_transfer(treasuryCap, ctx.sender());
+        event::emit(TreasuryCapManagerDestroyed { treasuryCapManagerId });
     }
 
     public entry fun issueMinterCap<CoinType>(
@@ -69,7 +100,9 @@ module mint_manager::minter_manager {
             id: object::new(ctx),
             managerId: object::uid_to_inner(&treasuryCapManager.id),
         };
+        let minterCapId = object::uid_to_inner(&minterCap.id);
         transfer::public_transfer(minterCap, recipient);
+        event::emit(MinterCapIssued { recipient, minterCapId });
     }
 
     public entry fun revokeMinterCap<CoinType>(
@@ -79,6 +112,8 @@ module mint_manager::minter_manager {
     ) {
         assert!(ctx.sender() == treasuryCapManager.admin, ENOT_ADMIN);
         treasuryCapManager.revokedMinters.add(object::uid_to_inner(&minterCap.id), true);
+        let minterCapId = object::uid_to_inner(&minterCap.id);
+        event::emit(MinterCapRevoked { minterCapId });
     }
 
     public entry fun mint<CoinType>(
