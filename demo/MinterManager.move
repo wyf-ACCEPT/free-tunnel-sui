@@ -110,13 +110,12 @@ module mint_manager::minter_manager {
     }
 
     public entry fun revokeMinterCap<CoinType>(
-        minterCap: &MinterCap<CoinType>,
+        minterCapId: ID,
         treasuryCapManager: &mut TreasuryCapManager<CoinType>,
         ctx: &mut TxContext,
     ) {
         assert!(ctx.sender() == treasuryCapManager.admin, ENOT_ADMIN);
-        treasuryCapManager.revokedMinters.add(object::uid_to_inner(&minterCap.id), true);
-        let minterCapId = object::uid_to_inner(&minterCap.id);
+        treasuryCapManager.revokedMinters.add(minterCapId, true);
         event::emit(MinterCapRevoked { minterCapId });
     }
 
