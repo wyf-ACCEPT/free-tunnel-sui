@@ -1,4 +1,4 @@
-module mint_manager::minter_manager {
+module minter_manager::minter_manager {
 
     use sui::event;
     use sui::table;
